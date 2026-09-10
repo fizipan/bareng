@@ -259,6 +259,26 @@
   background-size: 13px 13px;
 }
 
+/* Toast (Sonner) di layar ≤600 px: bawaan Sonner memberi toaster width:100%
+   plus offset kiri, jadi meluber ke kanan layar. Toaster dibuat selebar layar
+   dikurangi margin, toast selebar isinya dan di tengah. Sengaja tidak di dalam
+   @layer dan spesifisitasnya lebih tinggi supaya menang dari <style> Sonner. */
+@media (max-width: 600px) {
+  html [data-sonner-toaster][data-x-position="center"] {
+    left: 16px;
+    right: 16px;
+    width: auto;
+    transform: none;
+  }
+  html [data-sonner-toaster] [data-sonner-toast] {
+    left: 0;
+    right: 0;
+    margin-inline: auto;
+    width: max-content;
+    max-width: 100%;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;

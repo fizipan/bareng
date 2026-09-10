@@ -11,7 +11,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       position="bottom-center"
       duration={3000}
       offset={28}
-      mobileOffset={28}
+      mobileOffset={{ bottom: "calc(20px + env(safe-area-inset-bottom))", left: 16, right: 16 }}
       gap={8}
       icons={{
         success: (
@@ -29,7 +29,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         unstyled: true,
         classNames: {
           toast:
-            "inset-x-0 mx-auto flex w-max font-sans max-w-[calc(100vw-40px)] items-center gap-2.5 rounded-md bg-toast py-[11px] pr-4 pl-3 text-small text-kertas shadow-toast",
+            "inset-x-0 mx-auto flex w-max max-w-full font-sans items-center gap-2.5 rounded-md bg-toast py-[11px] pr-4 pl-3 text-small text-kertas shadow-toast",
           icon: "flex shrink-0 items-center",
           title: "font-normal",
         },
