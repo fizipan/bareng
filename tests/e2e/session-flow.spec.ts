@@ -24,6 +24,8 @@ test("host: landing sampai hasil premium", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Nyalakan kamera" })).toBeVisible({ timeout: 10_000 })
   await page.getByRole("button", { name: "Izinkan kamera" }).click()
   await expect(page.getByText("Begini nanti hasilnya")).toBeVisible()
+  // Warna status bar/tab ikut layar: Kabin gelap.
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#16141D")
 
   // Template gratis langsung terpasang, premium membuka paywall.
   await page.getByRole("radio", { name: /Polaroid ganda/ }).click()
@@ -34,6 +36,16 @@ test("host: landing sampai hasil premium", async ({ page }) => {
 
   await page.getByRole("button", { name: "Siap!" }).click()
   await expect(page.getByText(/Foto\s*1\s*dari 4/)).toBeVisible({ timeout: 10_000 })
+
+  // Angka hitung mundur berada di atas slot yang sedang diambil (foto 1).
+  const count = page.locator("span.animate-tick")
+  await expect(count).toBeVisible({ timeout: 10_000 })
+  const slot = await page.locator(".outline-shutter").first().boundingBox()
+  const num = await count.boundingBox()
+  const numCenter = num!.y + num!.height / 2
+  expect(numCenter).toBeGreaterThan(slot!.y)
+  expect(numCenter).toBeLessThan(slot!.y + slot!.height)
+
   await shootUntilReview(page)
 
   // Ulang satu foto.
@@ -44,6 +56,8 @@ test("host: landing sampai hasil premium", async ({ page }) => {
 
   await page.getByRole("button", { name: "Jadikan photostrip" }).click()
   await expect(page.getByRole("heading", { name: "Jadi! Ini photostrip kalian." })).toBeVisible()
+  // Layar Hasil mode Kertas: warna tema terang.
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#F4F3EF")
 
   await page.getByRole("button", { name: /Lihat premium/ }).click()
   await page.getByRole("button", { name: "Bayar Rp15.000" }).click()

@@ -107,7 +107,7 @@ function StripWindow({
 }) {
   const windowRef = useRef<HTMLDivElement>(null)
   const stripRef = useRef<HTMLDivElement>(null)
-  const [layout, setLayout] = useState({ offset: 0, clipTop: false, clipBottom: false })
+  const [layout, setLayout] = useState({ offset: 0, clipTop: false, clipBottom: false, activeCenter: 0 })
 
   useLayoutEffect(() => {
     const win = windowRef.current
@@ -116,14 +116,15 @@ function StripWindow({
     const update = () => {
       const vh = win.clientHeight
       const sh = strip.offsetHeight
-      if (sh <= vh) {
-        setLayout({ offset: (vh - sh) / 2, clipTop: false, clipBottom: false })
-        return
-      }
       const slot = template.slots[activeIdx]
       const center = ((slot.y + slot.h / 2) / template.canvas.height) * sh
+      if (sh <= vh) {
+        const offset = (vh - sh) / 2
+        setLayout({ offset, clipTop: false, clipBottom: false, activeCenter: offset + center })
+        return
+      }
       const offset = Math.min(0, Math.max(vh - sh, vh / 2 - center))
-      setLayout({ offset, clipTop: offset < -1, clipBottom: offset + sh > vh + 1 })
+      setLayout({ offset, clipTop: offset < -1, clipBottom: offset + sh > vh + 1, activeCenter: offset + center })
     }
     update()
     const ro = new ResizeObserver(update)
@@ -175,12 +176,15 @@ function StripWindow({
         />
       </div>
       {counting && (
-        <div
-          className="absolute inset-y-0 left-1/2 flex -translate-x-1/2 items-center justify-center bg-darkroom/55"
-          style={{ width: STRIP_WIDTH }}
-        >
-          <span key={count} className="animate-tick font-display text-display-xl font-extrabold text-flash" aria-live="assertive">
-            {count}
+        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 bg-darkroom/55" style={{ width: STRIP_WIDTH }}>
+          {/* Angka tepat di tengah slot yang sedang diambil. */}
+          <span
+            className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 transition-[top] duration-500 ease-strip"
+            style={{ top: layout.activeCenter }}
+          >
+            <span key={count} className="block animate-tick font-display text-display-xl font-extrabold text-flash" aria-live="assertive">
+              {count}
+            </span>
           </span>
         </div>
       )}
