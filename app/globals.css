@@ -1,26 +1,270 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Mode Kabin = gelap. Varian dark: bawaan komponen shadcn ikut mode ini. */
+@custom-variant dark (&:where(.kabin, .kabin *));
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ── Token brand (PRD §15.2–15.7), sama di kedua mode ─────────────────── */
+/* static: variabel selalu dikeluarkan karena token semantik di bawah merujuknya lewat var(). */
+@theme static {
+  --color-darkroom: #16141d;
+  --color-darkroom-2: #232030;
+  --color-kertas: #f4f3ef;
+  --color-kertas-2: #e9e7e1;
+  --color-shutter: #e4462e;
+  --color-shutter-hover: #cc3a25;
+  --color-shutter-soft: #ff7a64;
+  --color-flash: #ffd23f;
+  --color-grain: #8a8894;
+  --color-ok: #3fa871;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  /* Netral tambahan yang dipakai prototipe */
+  --color-ink-soft: #3b3944;
+  --color-ink-muted: #5f5d69;
+  --color-line: #dcd9d1;
+  --color-line-strong: #c9c6be;
+  --color-kabin-soft: #c9c7d1;
+  --color-kabin-muted: #a9a6b2;
+  --color-kabin-line: #3a3747;
+  --color-kabin-line-2: #312d3f;
+  --color-kabin-sunken: #1d1a28;
+
+  /* Skala tipografi. display-* untuk Bricolage, sisanya Inter. */
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1.3;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.4;
+  --text-meta: 0.8125rem;
+  --text-meta--line-height: 1.45;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.45;
+  --text-label: 0.9375rem;
+  --text-label--line-height: 1.4;
+  --text-body: 1rem;
+  --text-body--line-height: 1.5;
+  --text-title: 1.25rem;
+  --text-title--line-height: 1.3;
+  --text-display-sm: 1.5rem;
+  --text-display-sm--line-height: 1.15;
+  --text-display-md: 1.75rem;
+  --text-display-md--line-height: 1.2;
+  --text-hero: 2rem;
+  --text-hero--line-height: 1.1;
+  --text-display-lg: 2.75rem;
+  --text-display-lg--line-height: 1.1;
+  --text-display-xl: 4.5rem;
+  --text-display-xl--line-height: 1;
+
+  --tracking-code: 0.12em;
+
+  /* Radius: r-sm 6, r-md 14, full. Sisanya hanya untuk komponen shadcn. */
+  --radius-sm: 6px;
+  --radius-md: 14px;
+  --radius-lg: 14px;
+  --radius-xl: 22px;
+  --radius-2xl: 22px;
+
+  /* Satu-satunya bayangan yang diizinkan: strip foto (objek fisik) + toast */
+  --shadow-strip: 0 12px 24px rgb(22 20 29 / 0.18);
+  --shadow-strip-dark: 0 12px 24px rgb(0 0 0 / 0.35);
+  --shadow-toast: 0 8px 20px rgb(22 20 29 / 0.28);
+
+  --ease-strip: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --animate-flash: flash 120ms linear both;
+  --animate-strip-out: strip-out 900ms var(--ease-strip) both;
+  --animate-tick: tick 200ms ease-out;
+  --animate-blink: blink 1.8s ease-in-out infinite;
+  --animate-fade-in: fade-in 150ms ease-out both;
+
+  @keyframes flash {
+    0% {
+      opacity: 0;
+    }
+    8% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+  @keyframes strip-out {
+    from {
+      transform: translateY(-100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  @keyframes tick {
+    from {
+      transform: scale(1.15);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+  @keyframes blink {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ── Token semantik: nilainya ikut mode (Kertas default, Kabin gelap) ── */
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bricolage), var(--font-inter), ui-sans-serif, sans-serif;
+  --font-heading: var(--font-bricolage), var(--font-inter), ui-sans-serif, sans-serif;
+  --font-mono: ui-monospace, Menlo, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-soft-foreground: var(--soft-foreground);
+  --color-faint-foreground: var(--faint-foreground);
+  --color-sunken: var(--sunken);
+  --color-outline: var(--outline);
+  --color-outline-subtle: var(--outline-subtle);
+  --color-link: var(--link);
+  --color-toast: var(--toast);
+}
+
+:root,
+.kertas {
+  --background: var(--color-kertas);
+  --foreground: var(--color-darkroom);
+  --card: var(--color-kertas-2);
+  --card-foreground: var(--color-darkroom);
+  --popover: var(--color-kertas);
+  --popover-foreground: var(--color-darkroom);
+  --primary: var(--color-shutter);
+  --primary-foreground: var(--color-kertas);
+  --secondary: var(--color-kertas-2);
+  --secondary-foreground: var(--color-darkroom);
+  --muted: var(--color-kertas-2);
+  --muted-foreground: var(--color-ink-muted);
+  --accent: var(--color-kertas-2);
+  --accent-foreground: var(--color-darkroom);
+  --destructive: var(--color-shutter);
+  --border: var(--color-line);
+  --input: var(--color-line-strong);
+  --ring: var(--color-shutter);
+
+  --soft-foreground: var(--color-ink-soft);
+  --faint-foreground: var(--color-grain);
+  --sunken: #ffffff;
+  --outline: var(--color-darkroom);
+  --outline-subtle: var(--color-line-strong);
+  --link: var(--color-shutter-hover);
+  --toast: var(--color-darkroom);
+  --radius: 14px;
+}
+
+/* Halaman Kabin menandai pembungkusnya dengan .kabin; :has() membuat
+   portal (toast, dialog) di luar pembungkus ikut gelap tanpa JS. */
+:root:has(.mode-root.kabin),
+.kabin {
+  --background: var(--color-darkroom);
+  --foreground: var(--color-kertas);
+  --card: var(--color-darkroom-2);
+  --card-foreground: var(--color-kertas);
+  --popover: var(--color-darkroom-2);
+  --popover-foreground: var(--color-kertas);
+  --secondary: var(--color-darkroom-2);
+  --secondary-foreground: var(--color-kertas);
+  --muted: var(--color-kabin-sunken);
+  --muted-foreground: var(--color-kabin-muted);
+  --accent: var(--color-darkroom-2);
+  --accent-foreground: var(--color-kertas);
+  --border: var(--color-kabin-line-2);
+  --input: var(--color-kabin-line);
+
+  --soft-foreground: var(--color-kabin-soft);
+  --faint-foreground: var(--color-grain);
+  --sunken: var(--color-kabin-sunken);
+  --outline: var(--color-kabin-line);
+  --outline-subtle: var(--color-kabin-line);
+  --link: var(--color-shutter-soft);
+  --toast: var(--color-darkroom-2);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply bg-background font-sans;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  /* Lucide: stroke 1.75 px sesuai PRD §15.6 */
+  svg.lucide {
+    stroke-width: 1.75;
+  }
+}
+
+/* Butiran + vignette kabin (prototipe baris 84). */
+@utility kabin-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(rgb(244 243 239 / 0.05) 1px, transparent 1.2px),
+    radial-gradient(circle at 50% 42%, transparent 46%, rgb(0 0 0 / 0.42) 100%);
+  background-size:
+    3px 3px,
+    100% 100%;
+}
+
+/* Pola titik latar (hero landing, layar hasil, footer). */
+@utility bg-dots {
+  background-image: radial-gradient(var(--dots-color, var(--color-line)) 1.4px, transparent 1.5px);
+  background-size: 13px 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
