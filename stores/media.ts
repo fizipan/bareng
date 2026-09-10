@@ -1,6 +1,7 @@
 "use client"
 
 import { create } from "zustand"
+import { grabFrame, releaseCapture, warmCapture } from "@/lib/rtc/capture"
 import { CameraError, openCamera, openMic, stopStream } from "@/lib/rtc/media"
 import { IDLE_LINK, PeerLink, type LinkState, type Signal } from "@/lib/rtc/peer"
 import { warn } from "@/lib/toast"
@@ -51,6 +52,7 @@ export const media = {
         })
         useMedia.setState({ local: stream })
         peer?.setLocal(stream)
+        warmCapture(stream)
         return stream
       })
       .finally(() => {
@@ -66,6 +68,12 @@ export const media = {
     peer?.close()
     peer = new PeerLink({ ...opts, onChange: (link) => useMedia.setState({ link, remote: link.remote }) })
     peer.setLocal(useMedia.getState().local)
+  },
+
+  // Foto resolusi penuh dari kamera lokal (dicerminkan).
+  grab(): Promise<Blob> {
+    const local = useMedia.getState().local
+    return local ? grabFrame(local) : Promise.reject(new Error("no_camera"))
   },
 
   announce: () => peer?.announce(),
@@ -107,6 +115,7 @@ export const media = {
     opening = null
     media.disconnect()
     stopStream(useMedia.getState().local)
+    releaseCapture()
     useMedia.setState({ local: null, mic: false, opening: false })
   },
 }

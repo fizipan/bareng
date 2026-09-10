@@ -10,8 +10,9 @@ export type Tier = "free" | "premium"
 export type Conn = "ok" | "lambat" | "putus"
 export type ShotPhase = "idle" | "prompt" | "count" | "flash" | "saving"
 
-// Isi satu setengah slot. `look` = pola placeholder sampai foto asli ada (M4).
-export type FrameSource = { kind: "image"; url: string } | { kind: "look"; look: number }
+// Isi satu setengah slot: foto asli, masih dikirim, atau pola placeholder
+// (galeri dev & contoh).
+export type FrameSource = { kind: "image"; url: string } | { kind: "pending" } | { kind: "look"; look: number }
 
 // A = host, B = tamu. Urutan ini sama di kedua HP supaya strip-nya identik.
 export type Frame = { a: FrameSource; b: FrameSource }
@@ -33,6 +34,8 @@ export type SessionState = {
   partner: (Person & { joined: boolean; id?: string }) | null
   shot: { idx: number; phase: ShotPhase; count: number; prompt: string }
   frames: (Frame | null)[]
+  // Delapan foto (4 × berdua) sudah sampai di server → boleh jadi photostrip.
+  framesReady: boolean
   retakeQueue: number[]
   selected: number[]
   paywall: { open: boolean; pendingTemplateId: string | null; paying: boolean }

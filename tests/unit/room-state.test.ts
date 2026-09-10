@@ -68,14 +68,33 @@ describe("deriveView", () => {
         ...base,
         status: "capturing",
         frames: [
-          { idx: 0, participant_id: "h", status: "captured", path: null },
-          { idx: 0, participant_id: "g", status: "captured", path: null },
-          { idx: 1, participant_id: "h", status: "captured", path: null },
+          { idx: 0, participant_id: "h", status: "captured", path: null, v: 1 },
+          { idx: 0, participant_id: "g", status: "captured", path: null, v: 1 },
+          { idx: 1, participant_id: "h", status: "captured", path: null, v: 2 },
         ],
       },
       local
     )
     expect(v.frames.map((f) => !!f)).toEqual([true, false, false, false])
+  })
+  it("foto asli: punya sendiri dari HP ini, pasangan dari Storage, sisanya masih dikirim", () => {
+    const snap = {
+      ...base,
+      status: "review" as const,
+      frames: [
+        { idx: 0, participant_id: "h", status: "uploaded", path: "r1/h/0-1.jpg", v: 1 },
+        { idx: 0, participant_id: "g", status: "uploaded", path: "r1/g/0-1.jpg", v: 1 },
+        { idx: 1, participant_id: "h", status: "captured", path: null, v: 2 },
+        { idx: 1, participant_id: "g", status: "captured", path: null, v: 2 },
+      ],
+    }
+    const v = deriveView(snap, {
+      ...local,
+      images: { local: { "0:1": "blob:host-0", "1:2": "blob:host-1" }, remote: { "r1/g/0-1.jpg": "https://x/g0" } },
+    })
+    expect(v.frames[0]).toEqual({ a: { kind: "image", url: "blob:host-0" }, b: { kind: "image", url: "https://x/g0" } })
+    expect(v.frames[1]).toEqual({ a: { kind: "image", url: "blob:host-1" }, b: { kind: "pending" } })
+    expect(v.framesReady).toBe(false)
   })
   it("pasangan offline → koneksi putus", () => {
     expect(deriveView(base, { ...local, partnerOnline: false }).conn).toBe("putus")

@@ -47,6 +47,16 @@ async function allowCamera(page: Page) {
 
 const reviewHeading = (page: Page) => page.getByRole("heading", { name: "Empat foto, jadi." })
 
+// Review berisi 8 foto asli (4 frame × kamu & dia) yang benar-benar termuat.
+async function expectPhotos(page: Page) {
+  await expect
+    .poll(
+      () => page.evaluate(() => [...document.querySelectorAll("main img")].filter((img) => (img as HTMLImageElement).naturalWidth > 0).length),
+      { timeout: 30_000, message: "8 foto asli tampil" }
+    )
+    .toBeGreaterThanOrEqual(8)
+}
+
 test("dua orang: buat room, gabung, foto serentak, ulang, hasil", async ({ browser, baseURL }) => {
   test.setTimeout(180_000)
   const host = await newPhone(browser, baseURL)
@@ -121,6 +131,8 @@ test("dua orang: buat room, gabung, foto serentak, ulang, hasil", async ({ brows
 
   await expect(reviewHeading(host.page)).toBeVisible({ timeout: 60_000 })
   await expect(reviewHeading(guest.page)).toBeVisible({ timeout: 10_000 })
+  await expectPhotos(host.page)
+  await expectPhotos(guest.page)
 
   // Tamu minta ulang foto 2 → dua-duanya kembali ke foto 2.
   await guest.page.getByRole("button", { name: /^Foto 2/ }).click()
@@ -135,8 +147,11 @@ test("dua orang: buat room, gabung, foto serentak, ulang, hasil", async ({ brows
     .catch(() => {})
   await expect(reviewHeading(host.page)).toBeVisible({ timeout: 20_000 })
   await expect(reviewHeading(guest.page)).toBeVisible({ timeout: 10_000 })
+  await expectPhotos(host.page)
+  await expectPhotos(guest.page)
 
-  await host.page.getByRole("button", { name: "Jadikan photostrip" }).click()
+  // Tombol aktif setelah 8 foto sampai di server.
+  await host.page.getByRole("button", { name: "Jadikan photostrip" }).click({ timeout: 30_000 })
   const done = "Jadi! Ini photostrip kalian."
   await expect(host.page.getByRole("heading", { name: done })).toBeVisible({ timeout: 10_000 })
   await expect(guest.page.getByRole("heading", { name: done })).toBeVisible({ timeout: 10_000 })
@@ -185,6 +200,36 @@ test("pasangan putus: coba lagi 3×, lalu nyambung sendiri saat dia kembali", as
   await expect(host.page.getByText("Begini nanti hasilnya")).toBeVisible({ timeout: 20_000 })
   await expectFeed(host.page, "remote")
   await expectFeed(back, "remote")
+
+  expect(host.errors).toEqual([])
+  await host.close()
+  await guest.close()
+})
+
+test("putus di tengah sesi foto: foto yang terlewat diulang berdua", async ({ browser, baseURL }) => {
+  test.setTimeout(180_000)
+  const host = await newPhone(browser, baseURL)
+  const guest = await newPhone(browser, baseURL)
+  const code = await createRoom(host.page)
+  await guest.page.goto(`/r/${code}`)
+  await allowCamera(guest.page)
+  await allowCamera(host.page)
+  await guest.context.grantPermissions(["camera"])
+
+  await host.page.getByRole("button", { name: "Siap!" }).click()
+  await guest.page.getByRole("button", { name: "Siap!" }).click()
+  // Foto 1 beres, lalu tamu menutup tab saat foto 2; host motret sendirian.
+  await expect(guest.page.getByText(/Foto\s*2\s*dari 4/)).toBeVisible({ timeout: 20_000 })
+  await guest.page.close()
+  await host.page.waitForTimeout(8_000)
+
+  // Tamu kembali: foto 2 diulang berdua, sesi lanjut sampai review.
+  const back = await guest.context.newPage()
+  await back.goto(`/r/${code}`)
+  await expect(reviewHeading(host.page)).toBeVisible({ timeout: 90_000 })
+  await expect(reviewHeading(back)).toBeVisible({ timeout: 10_000 })
+  await expectPhotos(host.page)
+  await expectPhotos(back)
 
   expect(host.errors).toEqual([])
   await host.close()

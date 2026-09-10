@@ -9,6 +9,9 @@ export default defineConfig({
   timeout: 90_000,
   expect: { timeout: 10_000 },
   fullyParallel: true,
+  // Tiap tes sesi = 2–3 HP dengan kamera palsu + WebRTC + encode foto; lebih
+  // dari 2 sekaligus membuat CPU jenuh dan timing capture ikut melambat.
+  workers: 2,
   reporter: [["list"]],
   use: {
     baseURL,

@@ -17,6 +17,7 @@ export type Database = {
           idx: number
           participant_id: string
           room_id: string
+          shot_v: number
           status: string
           storage_path: string | null
         }
@@ -27,6 +28,7 @@ export type Database = {
           idx: number
           participant_id: string
           room_id: string
+          shot_v?: number
           status?: string
           storage_path?: string | null
         }
@@ -37,6 +39,7 @@ export type Database = {
           idx?: number
           participant_id?: string
           room_id?: string
+          shot_v?: number
           status?: string
           storage_path?: string | null
         }
@@ -202,6 +205,15 @@ export type Database = {
         Args: { p_captured_at: number; p_idx: number; p_room: string; p_version: number }
         Returns: undefined
       }
+      frame_uploaded: {
+        Args: {
+          p_idx: number
+          p_path: string
+          p_room: string
+          p_version: number
+        }
+        Returns: undefined
+      }
       get_public_result: { Args: { p_slug: string }; Returns: Json }
       get_room: { Args: { p_room: string }; Returns: Json }
       join_room: { Args: { p_code: string }; Returns: Json }
@@ -209,6 +221,10 @@ export type Database = {
       mock_upgrade: { Args: { p_room: string }; Returns: undefined }
       report_result: { Args: { p_reason?: string; p_slug: string }; Returns: undefined }
       request_retake: { Args: { p_indices: number[]; p_room: string }; Returns: undefined }
+      resume_shot: {
+        Args: { p_room: string; p_version: number }
+        Returns: undefined
+      }
       server_now: { Args: never; Returns: number }
       set_filter: { Args: { p_filter: string; p_room: string }; Returns: undefined }
       set_nickname: { Args: { p_nickname: string; p_room: string }; Returns: undefined }

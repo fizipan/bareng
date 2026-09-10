@@ -50,6 +50,9 @@ export const api = {
   skipPrompt: (roomId: string, version: number) => call<void>("skip_prompt", { p_room: roomId, p_version: version }),
   frameCaptured: (roomId: string, idx: number, version: number, capturedAt: number) =>
     call<void>("frame_captured", { p_room: roomId, p_idx: idx, p_version: version, p_captured_at: capturedAt }),
+  frameUploaded: (roomId: string, idx: number, version: number, path: string) =>
+    call<void>("frame_uploaded", { p_room: roomId, p_idx: idx, p_version: version, p_path: path }),
+  resumeShot: (roomId: string, version: number) => call<void>("resume_shot", { p_room: roomId, p_version: version }),
   requestRetake: (roomId: string, indices: number[]) => call<void>("request_retake", { p_room: roomId, p_indices: indices }),
   finishSession: (roomId: string) => call<string>("finish_session", { p_room: roomId }),
   leaveRoom: (roomId: string) => call<void>("leave_room", { p_room: roomId }),

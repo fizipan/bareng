@@ -79,16 +79,16 @@ export function ReviewScreen() {
             <Button variant="secondary" size="sm" className="flex-1" onClick={s.clearSelect}>
               Batal pilih
             </Button>
-            <Button variant="secondary" size="sm" className="flex-1" onClick={s.makeStrip}>
+            <Button variant="secondary" size="sm" className="flex-1" onClick={s.makeStrip} disabled={!s.framesReady}>
               Lanjut aja
             </Button>
           </div>
         </div>
       ) : (
         <div className="flex flex-col gap-2.5">
-          <Button onClick={s.makeStrip}>
-            <StripIcon data-icon="inline-start" />
-            Jadikan photostrip
+          <Button onClick={s.makeStrip} disabled={!s.framesReady}>
+            <StripIcon data-icon="inline-start" className={cn(!s.framesReady && "animate-blink")} />
+            {s.framesReady ? "Jadikan photostrip" : "Nunggu foto terkirim…"}
           </Button>
           <Button variant="ghost" className="text-label text-muted-foreground" onClick={s.retakeAll}>
             Ulang semua

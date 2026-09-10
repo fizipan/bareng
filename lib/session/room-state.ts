@@ -1,7 +1,7 @@
 import { z } from "zod"
 import type { ErrorKind } from "@/lib/content/errors"
 import { placeholderFrame } from "./demo"
-import type { Conn, Frame, Person, Role, Screen, ShotPhase, Tier } from "./types"
+import type { Conn, Frame, FrameSource, Person, Role, Screen, ShotPhase, Tier } from "./types"
 
 // Snapshot room dari server (private.room_state). Divalidasi supaya payload
 // realtime yang aneh tidak merusak UI.
@@ -28,7 +28,13 @@ export const roomSnapshotSchema = z.object({
     z.object({ id: z.string(), role: z.enum(["host", "guest"]), nickname: z.string().nullable(), ready: z.boolean() })
   ),
   frames: z.array(
-    z.object({ idx: z.number(), participant_id: z.string(), status: z.string(), path: z.string().nullable() })
+    z.object({
+      idx: z.number(),
+      participant_id: z.string(),
+      status: z.string(),
+      path: z.string().nullable(),
+      v: z.number().int(),
+    })
   ),
   result: z.object({ slug: z.string(), created_at: z.number() }).nullable(),
 })
@@ -72,6 +78,7 @@ export type RoomView = {
   me: Person
   partner: (Person & { joined: boolean; id: string }) | null
   frames: (Frame | null)[]
+  framesReady: boolean
   retakeQueue: number[]
   result: { slug: string; createdAt: string } | null
   conn: Conn
@@ -90,7 +97,15 @@ function connOf(partnerPresent: boolean, partnerOnline: boolean, link?: LinkView
 // Petakan snapshot server + keadaan lokal perangkat ke layar yang tampil.
 export function deriveView(
   snap: RoomSnapshot,
-  local: { participantId: string; camera: Camera; showInvite: boolean; partnerOnline: boolean; link?: LinkView }
+  local: {
+    participantId: string
+    camera: Camera
+    showInvite: boolean
+    partnerOnline: boolean
+    link?: LinkView
+    // Foto sendiri di HP ini (`idx:v` → URL lokal) & URL bertanda tangan (path → URL).
+    images?: { local: Record<string, string>; remote: Record<string, string> }
+  }
 ): RoomView {
   const me = snap.participants.find((p) => p.id === local.participantId)
   const role: Role = me?.role ?? "guest"
@@ -98,9 +113,22 @@ export function deriveView(
   const host = snap.participants.find((p) => p.role === "host")
   const guest = snap.participants.find((p) => p.role === "guest")
 
-  const frames = [0, 1, 2, 3].map((idx) => {
-    const mine = (id?: string) => snap.frames.some((f) => f.idx === idx && f.participant_id === id)
-    return host && guest && mine(host.id) && mine(guest.id) ? placeholderFrame(idx) : null
+  // Frame tampil begitu dua orang sudah memotret; tiap setengahnya foto asli
+  // (lokal atau dari Storage) atau "masih dikirim".
+  const images = local.images
+  const frames = [0, 1, 2, 3].map((idx): Frame | null => {
+    const rowOf = (id?: string) => snap.frames.find((f) => f.idx === idx && f.participant_id === id)
+    const a = rowOf(host?.id)
+    const b = rowOf(guest?.id)
+    if (!a || !b) return null
+    if (!images) return placeholderFrame(idx)
+    const source = (row: RoomSnapshot["frames"][number]): FrameSource => {
+      const url =
+        (row.participant_id === local.participantId ? images.local[`${idx}:${row.v}`] : undefined) ??
+        (row.path ? images.remote[row.path] : undefined)
+      return url ? { kind: "image", url } : { kind: "pending" }
+    }
+    return { a: source(a), b: source(b) }
   })
 
   let screen: Screen
@@ -143,6 +171,7 @@ export function deriveView(
       ? { id: partnerRow.id, name: partnerRow.nickname ?? "Dia", ready: partnerRow.ready, joined: true }
       : null,
     frames,
+    framesReady: snap.frames.filter((f) => f.status === "uploaded").length >= 8,
     retakeQueue: snap.retake_queue,
     result: snap.result ? { slug: snap.result.slug, createdAt: new Date(snap.result.created_at).toISOString() } : null,
     conn,

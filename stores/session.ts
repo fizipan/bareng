@@ -6,6 +6,7 @@ import { CameraError, cameraPermission } from "@/lib/rtc/media"
 import { signalSchema } from "@/lib/rtc/peer"
 import { api, RoomError } from "@/lib/session/api"
 import { joinRoomChannel, type RoomChannel } from "@/lib/session/channel"
+import { framePath, signFrames, uploadFrame, withRetry } from "@/lib/session/frames"
 import { placeholderFrame } from "@/lib/session/demo"
 import {
   deriveView,
@@ -14,11 +15,13 @@ import {
   type Camera,
   type RoomEvent,
   type RoomSnapshot,
+  type ServerShot,
 } from "@/lib/session/room-state"
 import type { DevActions, Screen, SessionActions, SessionState } from "@/lib/session/types"
 import { measureOffset } from "@/lib/sync/clock"
 import { getFilter } from "@/lib/templates/filters"
 import { DEFAULT_TEMPLATE_ID, getTemplate } from "@/lib/templates/builtin"
+import { playShutter, playTick, unlockSounds } from "@/lib/sounds"
 import { notify, warn } from "@/lib/toast"
 import { media, useMedia } from "@/stores/media"
 
@@ -30,6 +33,10 @@ import { media, useMedia } from "@/stores/media"
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 const EMPTY_FRAMES = [null, null, null, null]
 const PARTNER_GRACE_MS = 3000
+// Capture boleh telat sedikit (timer tersendat); lewat 1 dtk, shot diulang
+// berdua lewat resume_shot supaya tetap serentak.
+const CAPTURE_LATE_MS = 250
+const RESUME_AFTER_MS = 1000
 
 export function makeRoomCode() {
   const bytes = crypto.getRandomValues(new Uint8Array(6))
@@ -66,6 +73,7 @@ function initialState(): SessionState & Local {
     partner: null,
     shot: { idx: 0, phase: "idle", count: 3, prompt: "" },
     frames: [...EMPTY_FRAMES],
+    framesReady: true,
     retakeQueue: [],
     selected: [],
     paywall: { open: false, pendingTemplateId: null, paying: false },
@@ -84,11 +92,49 @@ function initialState(): SessionState & Local {
 let unsubscribe: (() => void) | null = null
 let clockOffset = 0
 let ticker: ReturnType<typeof setInterval> | null = null
-let reportedShot = ""
 let partnerTimer: ReturnType<typeof setTimeout> | null = null
 let connectingCode = ""
 // Naik tiap masuk/keluar room; enterRoom lama yang masih jalan berhenti sendiri.
 let generation = 0
+
+// ── Foto yang diambil HP ini ────────────────────────────────────────────────
+// Per `idx:v`. Dikirim bertahap (lapor → unggah → konfirmasi) dan dilanjutkan
+// dari tahap terakhir kalau sempat gagal (sinyal hilang).
+type Shot = {
+  idx: number
+  v: number
+  blob: Blob
+  url: string
+  capturedAt: number
+  stage: "report" | "upload" | "confirm" | "done"
+  sending: boolean
+}
+const shots = new Map<string, Shot>()
+const grabbing = new Set<string>()
+// URL bertanda tangan untuk foto di Storage (path → URL).
+let signed: Record<string, string> = {}
+const signing = new Set<string>()
+let captureTimer: ReturnType<typeof setTimeout> | null = null
+let armedKey = ""
+let resumedKey = ""
+
+function frameImages() {
+  const local: Record<string, string> = {}
+  for (const [key, shot] of shots) local[key] = shot.url
+  return { local, remote: signed }
+}
+
+function clearShots() {
+  if (captureTimer) clearTimeout(captureTimer)
+  captureTimer = null
+  armedKey = ""
+  resumedKey = ""
+  for (const shot of shots.values()) URL.revokeObjectURL(shot.url)
+  shots.clear()
+  grabbing.clear()
+  signed = {}
+  signing.clear()
+}
 
 function copyText(text: string) {
   navigator.clipboard?.writeText(text).catch(() => {})
@@ -112,6 +158,7 @@ export const useSession = create<Store>()((set, get) => {
       showInvite: s.showInvite,
       partnerOnline: s.partnerOnline,
       link: useMedia.getState().link,
+      images: frameImages(),
     })
     const leavingReview = s.screen === "review" && view.screen !== "review"
     set({
@@ -125,6 +172,7 @@ export const useSession = create<Store>()((set, get) => {
       me: view.me,
       partner: view.partner,
       frames: view.frames,
+      framesReady: view.framesReady,
       retakeQueue: view.retakeQueue,
       result: view.result,
       conn: view.conn,
@@ -141,16 +189,113 @@ export const useSession = create<Store>()((set, get) => {
   }
 
   const applySnapshot = (snap: RoomSnapshot, event: RoomEvent | null) => {
+    pruneShots(snap)
     set({ snapshot: snap })
     recompute(event)
+    void signMissing(snap)
+  }
+
+  // Foto yang sudah terkirim tapi barisnya dihapus server (diulang) dibuang,
+  // supaya isi HP ini selalu sama dengan server.
+  const pruneShots = (snap: RoomSnapshot) => {
+    const me = get().participantId
+    for (const [key, shot] of shots) {
+      if (shot.stage !== "done") continue
+      const kept = snap.frames.some((f) => f.idx === shot.idx && f.v === shot.v && f.participant_id === me)
+      if (kept) continue
+      URL.revokeObjectURL(shot.url)
+      shots.delete(key)
+    }
   }
 
   const resync = async () => {
     const roomId = get().roomId
     if (!roomId) return
+    retryDeliveries()
     try {
       applySnapshot(await api.getRoom(roomId), null)
     } catch {}
+  }
+
+  // Foto pasangan (dan foto sendiri setelah muat ulang) lewat URL bertanda tangan.
+  const signMissing = async (snap: RoomSnapshot) => {
+    const me = get().participantId
+    const need = snap.frames
+      .filter((f) => f.path && !signed[f.path] && !signing.has(f.path))
+      .filter((f) => !(f.participant_id === me && shots.has(`${f.idx}:${f.v}`)))
+      .map((f) => f.path as string)
+    if (!need.length) return
+    need.forEach((path) => signing.add(path))
+    try {
+      signed = { ...signed, ...(await signFrames(need)) }
+      recompute()
+    } catch {
+      // Dicoba lagi di snapshot / sinkron ulang berikutnya.
+    } finally {
+      need.forEach((path) => signing.delete(path))
+    }
+  }
+
+  // Lapor "sudah motret" dulu supaya sesi lanjut tanpa menunggu upload.
+  const deliver = async (roomId: string, participantId: string, shot: Shot) => {
+    if (shot.sending || shot.stage === "done") return
+    shot.sending = true
+    const path = framePath(roomId, participantId, shot.idx, shot.v)
+    try {
+      if (shot.stage === "report") {
+        await withRetry(() => api.frameCaptured(roomId, shot.idx, shot.v, shot.capturedAt))
+        shot.stage = "upload"
+      }
+      if (shot.stage === "upload") {
+        await withRetry(() => uploadFrame(path, shot.blob))
+        shot.stage = "confirm"
+      }
+      if (shot.stage === "confirm") {
+        await withRetry(() => api.frameUploaded(roomId, shot.idx, shot.v, path))
+        shot.stage = "done"
+      }
+    } catch {
+      warn("Foto belum terkirim, nanti dicoba lagi")
+    } finally {
+      shot.sending = false
+    }
+  }
+
+  const retryDeliveries = () => {
+    const { roomId, participantId } = get()
+    if (!roomId || !participantId) return
+    for (const shot of shots.values()) void deliver(roomId, participantId, shot)
+  }
+
+  // Ambil foto dari kamera lokal tepat di capture_at (jadwal server).
+  const captureShot = async (shot: ServerShot) => {
+    const s = get()
+    const snap = s.snapshot
+    const current = snap?.current_shot
+    const key = `${shot.idx}:${shot.v}`
+    if (!snap || !s.participantId || snap.status !== "capturing") return
+    if (current?.idx !== shot.idx || current.v !== shot.v || shots.has(key) || grabbing.has(key)) return
+    grabbing.add(key)
+    const capturedAt = Date.now() + clockOffset
+    if (s.sound) playShutter()
+    try {
+      const blob = await media.grab()
+      // Foto lama untuk urutan yang sama (sebelum diulang) diganti.
+      for (const [k, old] of shots) {
+        if (old.idx !== shot.idx) continue
+        URL.revokeObjectURL(old.url)
+        shots.delete(k)
+      }
+      const url = URL.createObjectURL(blob)
+      const entry: Shot = { idx: shot.idx, v: shot.v, blob, url, capturedAt, stage: "report", sending: false }
+      shots.set(key, entry)
+      recompute()
+      void deliver(snap.id, s.participantId, entry)
+    } catch {
+      // Kamera belum siap: shot ini nanti diulang berdua (resume_shot).
+    } finally {
+      grabbing.delete(key)
+    }
   }
 
   const onPresence = (ids: string[]) => {
@@ -169,23 +314,43 @@ export const useSession = create<Store>()((set, get) => {
     }, PARTNER_GRACE_MS)
   }
 
-  // Detak 50 ms selama sesi foto: fase UI dari jadwal server, lapor saat capture.
+  // Detak 50 ms selama sesi foto: fase UI & suara dari jadwal server. Capture
+  // sendiri memakai timer presisi tepat di capture_at.
   const tick = () => {
     const s = get()
     const snap = s.snapshot
     const shot = snap?.current_shot
-    if (!snap || !shot || snap.status !== "capturing") return
+    if (!snap || !shot || snap.status !== "capturing" || !s.participantId) return
     const now = Date.now() + clockOffset
     const { phase, count } = shotPhase(shot, now, snap.frames.length > 0)
+    if (s.sound && phase === "count" && (s.shot.phase !== "count" || s.shot.count !== count)) playTick()
     if (phase !== s.shot.phase || count !== s.shot.count || shot.idx !== s.shot.idx || shot.prompt !== s.shot.prompt) {
       set({ shot: { idx: shot.idx, phase, count, prompt: shot.prompt } })
     }
-    const key = `${snap.id}:${shot.idx}:${shot.v}`
-    if (now >= shot.capture_at && reportedShot !== key) {
-      reportedShot = key
-      // M4: ambil frame dari kamera lokal di sini, lalu unggah.
-      api.frameCaptured(snap.id, shot.idx, shot.v, now).catch(() => {
-        reportedShot = ""
+
+    // Kamera belum nyala (layar izin): tunggu, shot yang terlewat diulang nanti.
+    if (!useMedia.getState().local) return
+    const key = `${shot.idx}:${shot.v}`
+    const taken =
+      shots.has(key) ||
+      grabbing.has(key) ||
+      snap.frames.some((f) => f.idx === shot.idx && f.v === shot.v && f.participant_id === s.participantId)
+    if (taken) return
+    const until = shot.capture_at - now
+    if (until > 0) {
+      const armed = `${key}:${shot.capture_at}`
+      if (armedKey !== armed) {
+        armedKey = armed
+        if (captureTimer) clearTimeout(captureTimer)
+        captureTimer = setTimeout(() => void captureShot(shot), until)
+      }
+    } else if (-until <= CAPTURE_LATE_MS) {
+      void captureShot(shot)
+    } else if (-until > RESUME_AFTER_MS && resumedKey !== key) {
+      // HP ini melewatkan shot (putus / tab di belakang): ulang berdua.
+      resumedKey = key
+      api.resumeShot(snap.id, shot.v).catch(() => {
+        resumedKey = ""
       })
     }
   }
@@ -209,7 +374,7 @@ export const useSession = create<Store>()((set, get) => {
     if (ticker) clearInterval(ticker)
     ticker = null
     if (partnerTimer) clearTimeout(partnerTimer)
-    reportedShot = ""
+    clearShots()
   }
 
   const guard = async (fn: () => Promise<unknown>, fallback = "Gagal, coba lagi") => {
@@ -334,6 +499,7 @@ export const useSession = create<Store>()((set, get) => {
     // getUserMedia dipanggil dari klik (quirk iOS), atau otomatis kalau izin
     // sudah pernah diberikan.
     allowCamera: async () => {
+      unlockSounds()
       if (!get().roomId) {
         set({ screen: "lobby" }) // galeri dev: tanpa kamera sungguhan
         return
@@ -391,6 +557,7 @@ export const useSession = create<Store>()((set, get) => {
     },
 
     toggleReady: () => {
+      unlockSounds() // dari klik: izin audio iOS untuk suara hitung mundur
       const s = get()
       if (!s.partner?.joined) {
         notify("Dia belum masuk room")
@@ -403,6 +570,7 @@ export const useSession = create<Store>()((set, get) => {
     },
 
     skipPrompt: () => {
+      unlockSounds()
       const shot = get().snapshot?.current_shot
       if (get().shot.phase !== "prompt" || !shot) return
       guard(() => api.skipPrompt(room(), shot.v))
@@ -427,6 +595,10 @@ export const useSession = create<Store>()((set, get) => {
 
     // M5: komposit canvas + unggah hasil.
     makeStrip: () => {
+      if (!get().framesReady) {
+        notify("Tunggu sebentar, foto masih dikirim")
+        return
+      }
       notify("Photostrip kalian jadi")
       if (get().roomId) guard(() => api.finishSession(room()))
     },
@@ -481,6 +653,7 @@ export const useSession = create<Store>()((set, get) => {
     },
 
     toggleSound: () => {
+      unlockSounds()
       const sound = !get().sound
       set({ sound })
       notify(sound ? "Suara shutter nyala" : "Suara shutter mati")
@@ -576,4 +749,9 @@ if (typeof document !== "undefined") {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") useSession.getState().resync()
   })
+}
+
+// Sinyal kembali setelah putus: kirim ulang foto yang tertunda.
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => useSession.getState().resync())
 }
