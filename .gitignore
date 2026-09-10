@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# referensi prototipe lokal (tidak di-commit)
+/public/_proto/
+
+# playwright
+/test-results/
+/playwright-report/

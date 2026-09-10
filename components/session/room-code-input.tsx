@@ -9,11 +9,13 @@ export const ROOM_CODE_LENGTH = 6
 // Input kode room PRD §15.5: 6 kotak, Bricolage display-md, auto-advance,
 // huruf besar otomatis, paste satu kode langsung terisi.
 export function RoomCodeInput({
+  id = "room-code",
   value,
   onChange,
   onComplete,
   autoFocus,
 }: {
+  id?: string
   value: string
   onChange: (value: string) => void
   onComplete?: (value: string) => void
@@ -21,6 +23,7 @@ export function RoomCodeInput({
 }) {
   return (
     <InputOTP
+      id={id}
       maxLength={ROOM_CODE_LENGTH}
       value={value}
       onChange={(v) => onChange(v.toUpperCase())}

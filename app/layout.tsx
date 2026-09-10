@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="id" className={`${inter.variable} ${bricolage.variable}`}>
+    <html lang="id" data-scroll-behavior="smooth" className={`${inter.variable} ${bricolage.variable}`}>
       <body>
         {children}
         <Toaster />

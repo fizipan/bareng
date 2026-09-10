@@ -15,13 +15,13 @@ export function StatusPill({
   tone = "ok",
   className,
   children,
-}: {
+  ...props
+}: React.ComponentProps<"span"> & {
   tone?: PillTone
-  className?: string
-  children: React.ReactNode
 }) {
   return (
     <span
+      {...props}
       className={cn(
         "inline-flex items-center gap-[7px] rounded-full bg-card px-3 py-[7px] text-caption text-soft-foreground",
         className
