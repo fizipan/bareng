@@ -1,21 +1,31 @@
 import { create } from "zustand"
-import { randomPrompt } from "@/lib/content/prompts"
 import { shareOrigin } from "@/lib/brand"
+import type { ErrorKind } from "@/lib/content/errors"
+import { randomPrompt } from "@/lib/content/prompts"
+import { api, RoomError } from "@/lib/session/api"
+import { joinRoomChannel } from "@/lib/session/channel"
+import { placeholderFrame } from "@/lib/session/demo"
+import {
+  deriveView,
+  partnerEventMessage,
+  shotPhase,
+  type Camera,
+  type RoomEvent,
+  type RoomSnapshot,
+} from "@/lib/session/room-state"
+import type { DevActions, Screen, SessionActions, SessionState } from "@/lib/session/types"
+import { measureOffset } from "@/lib/sync/clock"
 import { getFilter } from "@/lib/templates/filters"
 import { DEFAULT_TEMPLATE_ID, getTemplate } from "@/lib/templates/builtin"
-import { notify } from "@/lib/toast"
-import { placeholderFrame } from "@/lib/session/demo"
-import type { DevActions, Screen, SessionActions, SessionState } from "@/lib/session/types"
+import { notify, warn } from "@/lib/toast"
 
-// Store sesi. Di M1 bagian "server" masih disimulasikan persis seperti logika
-// prototipe (pasangan masuk otomatis, timer hitung mundur lokal). M2 mengganti
-// fungsi bertanda SIMULASI dengan RPC Supabase + event realtime.
+// Store sesi. Sumber kebenaran = server (RPC Supabase + broadcast realtime
+// `room_state`); store menurunkan layar dari snapshot + keadaan lokal
+// perangkat (izin kamera, layar undang). Aksi dev* hanya untuk /dev/screens.
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 const EMPTY_FRAMES = [null, null, null, null]
-
-// Nama pasangan simulasi, sama dengan data contoh prototipe.
-const DEMO_NAMES = { host: "Rara", guest: "Dimas" }
+const PARTNER_GRACE_MS = 3000
 
 export function makeRoomCode() {
   const bytes = crypto.getRandomValues(new Uint8Array(6))
@@ -25,11 +35,20 @@ export function makeRoomCode() {
 export const roomUrl = (code: string) => `${shareOrigin()}/r/${code}`
 export const resultUrl = (slug: string) => `${shareOrigin()}/p/${slug}`
 
-function initialState(): SessionState {
+type Local = {
+  roomId: string | null
+  participantId: string | null
+  camera: Camera
+  showInvite: boolean
+  partnerOnline: boolean
+  snapshot: RoomSnapshot | null
+}
+
+function initialState(): SessionState & Local {
   return {
     code: "",
     role: "host",
-    screen: "undang",
+    screen: "connecting",
     errorKind: "camera",
     conn: "ok",
     reconnectAttempt: 0,
@@ -45,159 +64,241 @@ function initialState(): SessionState {
     selected: [],
     paywall: { open: false, pendingTemplateId: null, paying: false },
     result: null,
+    roomId: null,
+    participantId: null,
+    camera: "unknown",
+    showInvite: false,
+    partnerOnline: true,
+    snapshot: null,
   }
 }
 
-// Semua timer simulasi dikumpulkan supaya bisa dibatalkan saat pindah layar.
-let timers: ReturnType<typeof setTimeout>[] = []
-const clearTimers = () => {
-  timers.forEach(clearTimeout)
-  timers = []
-}
-const after = (ms: number, fn: () => void) => {
-  timers.push(setTimeout(fn, ms))
-}
-
-const fullFrames = () => [0, 1, 2, 3].map(placeholderFrame)
-
-// Room yang dibuat di tab ini. Supaya host tetap host walau halaman dimuat
-// ulang (M2: peran datang dari server lewat auth.uid()).
-const HOSTED_KEY = "bareng:hosted-room"
-const rememberHosted = (code: string) => {
-  try {
-    sessionStorage.setItem(HOSTED_KEY, code)
-  } catch {}
-}
-const isHosted = (code: string) => {
-  try {
-    return sessionStorage.getItem(HOSTED_KEY) === code
-  } catch {
-    return false
-  }
-}
+// ── Koneksi & jam (di luar React supaya bertahan saat pindah layar) ─────────
+let unsubscribe: (() => void) | null = null
+let clockOffset = 0
+let ticker: ReturnType<typeof setInterval> | null = null
+let reportedShot = ""
+let partnerTimer: ReturnType<typeof setTimeout> | null = null
+let connectingCode = ""
 
 function copyText(text: string) {
   navigator.clipboard?.writeText(text).catch(() => {})
 }
 
-type Store = SessionState & SessionActions & DevActions
+function errorKindOf(e: unknown): ErrorKind {
+  return e instanceof RoomError && e.kind ? e.kind : "jaringan"
+}
+
+type Internal = { resync: () => Promise<void> }
+type Store = SessionState & Local & SessionActions & DevActions & Internal
 
 export const useSession = create<Store>()((set, get) => {
-  const patchPartner = (patch: Partial<NonNullable<SessionState["partner"]>>) => {
-    const partner = get().partner
-    if (partner) set({ partner: { ...partner, ...patch } })
-  }
-
-  // SIMULASI: pasangan masuk room.
-  const simulateJoin = () => {
+  // Hitung ulang layar dari snapshot terakhir + keadaan lokal.
+  const recompute = (event: RoomEvent | null = null) => {
     const s = get()
-    if (s.partner?.joined) return
-    set({ partner: { name: DEMO_NAMES.guest, ready: false, joined: true } })
-    notify(`${DEMO_NAMES.guest} masuk`)
-    after(1100, () => {
-      if (get().screen === "undang") set({ screen: "izin" })
+    if (!s.snapshot || !s.participantId) return
+    const view = deriveView(s.snapshot, {
+      participantId: s.participantId,
+      camera: s.camera,
+      showInvite: s.showInvite,
+      partnerOnline: s.partnerOnline,
     })
+    const leavingReview = s.screen === "review" && view.screen !== "review"
+    set({
+      code: view.code,
+      role: view.role,
+      screen: view.screen,
+      errorKind: view.errorKind ?? s.errorKind,
+      tier: view.tier,
+      templateId: view.templateId,
+      filterId: view.filterId as SessionState["filterId"],
+      me: view.me,
+      partner: view.partner,
+      frames: view.frames,
+      retakeQueue: view.retakeQueue,
+      result: view.result,
+      conn: view.conn,
+      selected: leavingReview ? [] : s.selected,
+    })
+    if (event?.by && event.by !== s.participantId) {
+      const msg = partnerEventMessage(event, view.partner?.name ?? "Dia", (id) => getTemplate(id).name)
+      if (msg) notify(msg)
+    }
+    syncTicker()
   }
 
-  // SIMULASI: di M2 jadwal shot datang dari server (`shot_scheduled`).
-  const beginFrame = (idx: number) => {
-    clearTimers()
-    set({ shot: { idx, phase: "prompt", count: 3, prompt: randomPrompt(get().shot.prompt) } })
-    after(1600, startCount)
+  const applySnapshot = (snap: RoomSnapshot, event: RoomEvent | null) => {
+    set({ snapshot: snap })
+    recompute(event)
   }
 
-  const startCount = () => {
-    clearTimers()
-    const shot = get().shot
-    set({ shot: { ...shot, phase: "count", count: 3 } })
-    after(1000, () => set({ shot: { ...get().shot, count: 2 } }))
-    after(2000, () => set({ shot: { ...get().shot, count: 1 } }))
-    after(3000, () => set({ shot: { ...get().shot, phase: "flash" } }))
-    after(3160, captureDone)
+  const resync = async () => {
+    const roomId = get().roomId
+    if (!roomId) return
+    try {
+      applySnapshot(await api.getRoom(roomId), null)
+    } catch {}
   }
 
-  const captureDone = () => {
-    const s = get()
-    const idx = s.shot.idx
-    const frames = s.frames.slice()
-    frames[idx] = placeholderFrame(idx)
-    const wasRetake = s.retakeQueue.length > 0
-    const queue = s.retakeQueue.filter((n) => n !== idx)
-    set({ frames, retakeQueue: queue, shot: { ...s.shot, phase: "saving" } })
-    if (wasRetake) {
-      if (queue.length) after(700, () => beginFrame(queue[0]))
-      else after(400, () => set({ screen: "review", shot: { ...get().shot, phase: "idle" } }))
+  const onPresence = (ids: string[]) => {
+    const partnerId = get().partner?.id
+    const online = !partnerId || ids.includes(partnerId)
+    if (partnerTimer) clearTimeout(partnerTimer)
+    if (online) {
+      set({ partnerOnline: true })
+      recompute()
       return
     }
-    if (idx < 3) after(900, () => beginFrame(idx + 1))
-    else after(800, () => set({ screen: "review", shot: { ...get().shot, phase: "idle" } }))
+    // Beri jeda sebelum menyatakan putus (refresh / pindah jaringan singkat).
+    partnerTimer = setTimeout(() => {
+      set({ partnerOnline: false })
+      recompute()
+    }, PARTNER_GRACE_MS)
   }
 
-  const startSession = () => {
-    set({ screen: "capture", frames: [...EMPTY_FRAMES], retakeQueue: [], selected: [] })
-    beginFrame(0)
+  // Detak 50 ms selama sesi foto: fase UI dari jadwal server, lapor saat capture.
+  const tick = () => {
+    const s = get()
+    const snap = s.snapshot
+    const shot = snap?.current_shot
+    if (!snap || !shot || snap.status !== "capturing") return
+    const now = Date.now() + clockOffset
+    const { phase, count } = shotPhase(shot, now, snap.frames.length > 0)
+    if (phase !== s.shot.phase || count !== s.shot.count || shot.idx !== s.shot.idx || shot.prompt !== s.shot.prompt) {
+      set({ shot: { idx: shot.idx, phase, count, prompt: shot.prompt } })
+    }
+    const key = `${snap.id}:${shot.idx}:${shot.v}`
+    if (now >= shot.capture_at && reportedShot !== key) {
+      reportedShot = key
+      // M4: ambil frame dari kamera lokal di sini, lalu unggah.
+      api.frameCaptured(snap.id, shot.idx, shot.v, now).catch(() => {
+        reportedShot = ""
+      })
+    }
+  }
+
+  const syncTicker = () => {
+    const snap = get().snapshot
+    if (snap?.status === "capturing" && snap.current_shot) {
+      if (!ticker) ticker = setInterval(tick, 50)
+      tick()
+    } else {
+      if (ticker) clearInterval(ticker)
+      ticker = null
+      if (get().shot.phase !== "idle") set({ shot: { ...get().shot, phase: "idle" } })
+    }
+  }
+
+  const disconnect = () => {
+    unsubscribe?.()
+    unsubscribe = null
+    if (ticker) clearInterval(ticker)
+    ticker = null
+    if (partnerTimer) clearTimeout(partnerTimer)
+    reportedShot = ""
+  }
+
+  const guard = async (fn: () => Promise<unknown>, fallback = "Gagal, coba lagi") => {
+    try {
+      await fn()
+    } catch (e) {
+      warn(e instanceof RoomError && e.code === "premium_required" ? "Template ini khusus premium" : fallback)
+      resync()
+    }
+  }
+
+  const room = () => get().roomId as string
+
+  // Simulasi loop foto untuk galeri dev (tanpa server).
+  const devBeginFrame = (idx: number) => {
+    set({ shot: { idx, phase: "prompt", count: 3, prompt: randomPrompt(get().shot.prompt) } })
+    const live = () => !get().snapshot && get().screen === "capture"
+    setTimeout(() => {
+      if (!live()) return
+      set({ shot: { ...get().shot, phase: "count", count: 3 } })
+      setTimeout(() => live() && set({ shot: { ...get().shot, count: 2 } }), 1000)
+      setTimeout(() => live() && set({ shot: { ...get().shot, count: 1 } }), 2000)
+      setTimeout(() => live() && set({ shot: { ...get().shot, phase: "flash" } }), 3000)
+      setTimeout(() => {
+        if (!live()) return
+        const frames = get().frames.slice()
+        frames[idx] = placeholderFrame(idx)
+        set({ frames, shot: { ...get().shot, phase: "saving" } })
+        if (idx < 3) setTimeout(() => live() && devBeginFrame(idx + 1), 900)
+        else setTimeout(() => live() && set({ screen: "review" }), 800)
+      }, 3160)
+    }, 1600)
   }
 
   return {
     ...initialState(),
 
-    // SIMULASI: di M2 memanggil RPC create_room lalu redirect ke /r/{code}.
-    createRoom: () => {
-      clearTimers()
-      const code = makeRoomCode()
-      set({ ...initialState(), code, role: "host", screen: "undang", sound: get().sound })
-      rememberHosted(code)
-      notify("Room dibuat")
-      after(3600, simulateJoin)
+    resync,
+
+    createRoom: async () => {
+      const { code } = await api.createRoom()
       return code
     },
 
-    // Dipanggil halaman /r/[code]. Kalau bukan room yang barusan dibuat di HP
-    // ini, berarti datang dari link/kode → masuk sebagai tamu.
-    enterRoom: (code) => {
-      if (get().code === code) return
-      clearTimers()
-      if (isHosted(code)) {
-        set({ ...initialState(), code, role: "host", screen: "undang" })
-        after(3600, simulateJoin)
-        return
+    // Dipanggil halaman /r/[code]: join (atau masuk ulang) lalu dengarkan channel.
+    enterRoom: async (code) => {
+      const s = get()
+      if ((s.code === code && s.roomId && unsubscribe) || connectingCode === code) return
+      connectingCode = code
+      disconnect()
+      set({ ...initialState(), code, sound: s.sound })
+      try {
+        const joined = await api.joinRoom(code)
+        set({ roomId: joined.room_id, participantId: joined.participant_id, role: joined.role })
+        applySnapshot(await api.getRoom(joined.room_id), null)
+        unsubscribe = await joinRoomChannel(joined.room_id, joined.participant_id, {
+          onState: applySnapshot,
+          onPresence,
+          onResync: resync,
+        })
+        measureOffset(api.serverNow).then((o) => {
+          clockOffset = o
+        })
+      } catch (e) {
+        set({ screen: "error", errorKind: errorKindOf(e) })
+      } finally {
+        connectingCode = ""
       }
-      set({
-        ...initialState(),
-        code,
-        role: "guest",
-        screen: "izin",
-        partner: { name: DEMO_NAMES.host, ready: false, joined: true },
-      })
-      notify("Kamu masuk room")
     },
 
-    fail: (kind) => {
-      clearTimers()
-      set({ screen: "error", errorKind: kind })
-    },
+    fail: (kind) => set({ screen: "error", errorKind: kind }),
 
     leave: () => {
-      clearTimers()
+      const roomId = get().roomId
+      if (roomId) api.leaveRoom(roomId).catch(() => {})
+      disconnect()
       set(initialState())
     },
 
     backToInvite: () => {
-      clearTimers()
-      set({ screen: "undang", me: { ...get().me, ready: false } })
-      patchPartner({ ready: false })
+      if (get().role === "host") {
+        set({ showInvite: true })
+        recompute()
+      }
+    },
+    closeInvite: () => {
+      set({ showInvite: false })
+      recompute()
+    },
+
+    setNickname: (name) => {
+      guard(() => api.setNickname(room(), name))
     },
 
     // M3: getUserMedia sungguhan.
     allowCamera: () => {
-      clearTimers()
-      set({ screen: "lobby", me: { ...get().me, ready: false } })
-      patchPartner({ ready: false })
+      set({ camera: "granted" })
+      recompute()
       notify("Kamera nyala")
     },
     denyCamera: () => {
-      clearTimers()
-      set({ screen: "error", errorKind: "camera" })
+      set({ camera: "denied" })
+      recompute()
     },
 
     copyInviteLink: () => {
@@ -211,17 +312,21 @@ export const useSession = create<Store>()((set, get) => {
 
     setTemplate: (id) => {
       const t = getTemplate(id)
-      if (t.tier === "premium" && get().tier !== "premium") {
+      const s = get()
+      if (t.tier === "premium" && s.tier !== "premium") {
         set({ paywall: { open: true, pendingTemplateId: t.id, paying: false } })
         return
       }
-      if (get().templateId === t.id) return
+      if (s.templateId === t.id) return
       set({ templateId: t.id })
       notify("Template diganti — dia juga lihat")
+      if (s.roomId) guard(() => api.setTemplate(room(), t.id))
     },
     setFilter: (id) => {
+      if (get().filterId === id) return
       set({ filterId: id })
       notify(`Filter: ${getFilter(id).name}`)
+      if (get().roomId) guard(() => api.setFilter(room(), id))
     },
 
     toggleReady: () => {
@@ -230,23 +335,16 @@ export const useSession = create<Store>()((set, get) => {
         notify("Dia belum masuk room")
         return
       }
-      if (s.me.ready) {
-        clearTimers()
-        set({ me: { ...s.me, ready: false } })
-        patchPartner({ ready: false })
-        return
-      }
-      set({ me: { ...s.me, ready: true } })
-      notify("Kamu siap")
-      // SIMULASI: pasangan ikut siap, lalu server memulai sesi.
-      after(1500, () => {
-        patchPartner({ ready: true })
-        after(700, startSession)
-      })
+      const ready = !s.me.ready
+      set({ me: { ...s.me, ready } })
+      if (ready) notify("Kamu siap")
+      if (s.roomId) guard(() => api.setReady(room(), ready))
     },
 
     skipPrompt: () => {
-      if (get().shot.phase === "prompt") startCount()
+      const shot = get().snapshot?.current_shot
+      if (get().shot.phase !== "prompt" || !shot) return
+      guard(() => api.skipPrompt(room(), shot.v))
     },
 
     toggleSelect: (idx) => {
@@ -255,22 +353,21 @@ export const useSession = create<Store>()((set, get) => {
     },
     clearSelect: () => set({ selected: [] }),
     retakeSelected: () => {
-      const s = get()
-      const queue = [...s.selected].sort((a, b) => a - b)
+      const queue = [...get().selected].sort((a, b) => a - b)
       if (!queue.length) return
-      const frames = s.frames.slice()
-      queue.forEach((i) => (frames[i] = null))
-      set({ retakeQueue: queue, selected: [], frames, screen: "capture" })
+      set({ selected: [] })
       notify(queue.length > 1 ? `Ulang ${queue.length} foto` : `Ulang foto ${queue[0] + 1}`)
-      beginFrame(queue[0])
+      if (get().roomId) guard(() => api.requestRetake(room(), queue))
     },
-    retakeAll: () => startSession(),
+    retakeAll: () => {
+      notify("Ulang semua foto")
+      if (get().roomId) guard(() => api.requestRetake(room(), [0, 1, 2, 3]))
+    },
 
     // M5: komposit canvas + unggah hasil.
     makeStrip: () => {
-      clearTimers()
-      set({ screen: "hasil", result: { slug: "contoh", createdAt: new Date().toISOString() } })
       notify("Photostrip kalian jadi")
+      if (get().roomId) guard(() => api.finishSession(room()))
     },
     download: () => notify(get().tier === "premium" ? "Photostrip tersimpan, kualitas tinggi" : "Tersimpan dengan watermark"),
     share: () => {
@@ -290,27 +387,36 @@ export const useSession = create<Store>()((set, get) => {
       copyText(resultUrl(slug))
       notify("Link hasil disalin")
     },
-    deleteResult: () => notify("Foto dihapus"),
+    deleteResult: async () => {
+      const slug = get().result?.slug
+      if (slug && get().roomId) await api.deleteResult(slug)
+      notify("Foto dihapus")
+    },
 
     openPaywall: () => set({ paywall: { open: true, pendingTemplateId: null, paying: false } }),
     closePaywall: () => {
       if (get().paywall.paying) return
       set({ paywall: { open: false, pendingTemplateId: null, paying: false } })
     },
-    // M6: MockProvider + webhook → session_upgraded.
-    pay: () => {
+    // M6: MockProvider + webhook → session_upgraded. Sekarang langsung upgrade room.
+    pay: async () => {
       const s = get()
       if (s.paywall.paying) return
       set({ paywall: { ...s.paywall, paying: true } })
-      after(1900, () => {
-        const pending = get().paywall.pendingTemplateId
-        set({
-          tier: "premium",
-          templateId: pending ?? get().templateId,
-          paywall: { open: false, pendingTemplateId: null, paying: false },
-        })
+      try {
+        if (s.roomId) {
+          await api.mockUpgrade(room())
+          const pending = get().paywall.pendingTemplateId
+          if (pending) await api.setTemplate(room(), pending)
+        } else {
+          set({ tier: "premium", templateId: get().paywall.pendingTemplateId ?? get().templateId })
+        }
+        set({ paywall: { open: false, pendingTemplateId: null, paying: false } })
         notify("Pembayaran berhasil — sesi jadi premium")
-      })
+      } catch {
+        set({ paywall: { ...get().paywall, paying: false } })
+        warn("Pembayaran belum berhasil, foto kalian tetap aman")
+      }
     },
 
     toggleSound: () => {
@@ -320,28 +426,38 @@ export const useSession = create<Store>()((set, get) => {
     },
 
     errorAction: () => {
-      const kind = get().errorKind
-      if (kind === "camera") set({ screen: "izin" })
-      if (kind === "putus") {
-        set({ conn: "ok", reconnectAttempt: 0, screen: "lobby" })
-        notify("Tersambung lagi")
+      const s = get()
+      if (s.errorKind === "camera") {
+        set({ camera: "unknown", screen: s.snapshot ? s.screen : "izin" })
+        recompute()
+      } else if (s.errorKind === "putus") {
+        set({ partnerOnline: true, conn: "ok", screen: s.snapshot ? s.screen : "lobby" })
+        resync()
+      } else if (s.errorKind === "jaringan" && s.code) {
+        const code = s.code
+        set({ code: "" })
+        get().enterRoom(code)
       }
     },
 
+    // "Foto lagi": lepas koneksi tanpa menutup room (pasangan masih lihat hasil).
     reset: () => {
-      clearTimers()
+      disconnect()
       set(initialState())
     },
 
-    // ── Dev ─────────────────────────────────────────────────────────────
+    // ── Dev (/dev/screens): isi state langsung, pasangan & foto disimulasikan ──
     devJump: (screen: Screen) => {
-      clearTimers()
+      disconnect()
       const s = get()
-      const base: Partial<SessionState> = {
+      const base: Partial<SessionState & Local> = {
         code: s.code || makeRoomCode(),
         screen,
+        snapshot: null,
+        roomId: null,
+        participantId: null,
         me: { ...s.me, ready: false },
-        partner: { name: s.role === "host" ? DEMO_NAMES.guest : DEMO_NAMES.host, ready: false, joined: screen !== "undang" },
+        partner: { name: s.role === "host" ? "Dimas" : "Rara", ready: false, joined: screen !== "undang" },
         paywall: { open: false, pendingTemplateId: null, paying: false },
         shot: { ...s.shot, phase: "idle" },
         selected: [],
@@ -349,10 +465,10 @@ export const useSession = create<Store>()((set, get) => {
       }
       if (screen === "capture") {
         set({ ...base, frames: [...EMPTY_FRAMES] })
-        beginFrame(0)
+        devBeginFrame(0)
         return
       }
-      if (screen === "review" || screen === "hasil") base.frames = fullFrames()
+      if (screen === "review" || screen === "hasil") base.frames = [0, 1, 2, 3].map(placeholderFrame)
       if (screen === "hasil") base.result = { slug: "contoh", createdAt: new Date().toISOString() }
       set(base)
     },
@@ -362,16 +478,24 @@ export const useSession = create<Store>()((set, get) => {
     },
     devSetConn: (conn) => {
       if (conn === "putus") {
-        clearTimers()
         set({ conn, reconnectAttempt: 2, screen: "error", errorKind: "putus" })
         return
       }
       set({ conn, reconnectAttempt: 0 })
     },
-    devSetError: (kind) => {
-      clearTimers()
-      set({ screen: "error", errorKind: kind })
+    devSetError: (kind) => set({ screen: "error", errorKind: kind }),
+    devSimulateJoin: () => {
+      const s = get()
+      if (s.partner?.joined) return
+      set({ partner: { name: "Dimas", ready: false, joined: true } })
+      notify("Dimas masuk")
     },
-    devSimulateJoin: simulateJoin,
   }
 })
+
+// Sinkron ulang saat tab kembali terlihat (HP sempat terkunci, dsb.).
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") useSession.getState().resync()
+  })
+}

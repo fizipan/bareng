@@ -1,5 +1,7 @@
 "use client"
 
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { CheckIcon, Volume2Icon, VolumeXIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getFilter } from "@/lib/templates/filters"
@@ -10,12 +12,15 @@ import { useSession } from "@/stores/session"
 import { BackButton } from "../back-button"
 import { ConnectionPill } from "../connection-pill"
 import { FilterChips } from "../filter-chips"
+import { NicknameDialog } from "../nickname-dialog"
 import { TemplatePicker } from "../template-picker"
 import { VideoTile } from "../video-tile"
 
 // Layar Lobby (prototipe baris 516–605): preview berdua, template, filter, siap.
 export function LobbyScreen() {
+  const router = useRouter()
   const s = useSession()
+  const [editingName, setEditingName] = useState(false)
   const partner = s.partner
   const filterCss = getFilter(s.filterId).css
   const both = partner?.ready && s.me.ready
@@ -28,22 +33,26 @@ export function LobbyScreen() {
       : "Kalian berdua harus tekan siap"
 
   // Tile kiri selalu host, kanan tamu — sama dengan urutan di strip.
-  const tiles =
-    s.role === "host"
-      ? [
-          { name: s.me.name, placeholder: "feed kamera kamu", bg: LIVE_A },
-          { name: partner?.name ?? "Dia", placeholder: "feed kamera dia", bg: LIVE_B, waiting: !partner?.joined },
-        ]
-      : [
-          { name: partner?.name ?? "Dia", placeholder: "feed kamera dia", bg: LIVE_A },
-          { name: s.me.name, placeholder: "feed kamera kamu", bg: LIVE_B },
-        ]
+  const mine = { name: s.me.name, placeholder: "feed kamera kamu", mine: true }
+  const theirs = { name: partner?.name ?? "Dia", placeholder: "feed kamera dia", waiting: !partner?.joined }
+  const tiles = (s.role === "host" ? [mine, theirs] : [theirs, mine]).map((t, i) => ({ ...t, bg: i === 0 ? LIVE_A : LIVE_B }))
 
   return (
     <div className="flex flex-col gap-[18px] px-5 pt-3 pb-8">
       <div className="flex items-center justify-between gap-2.5">
         <span className="flex items-center gap-2">
-          <BackButton size="icon-sm" label="Keluar dari booth" onClick={s.backToInvite} />
+          <BackButton
+            size="icon-sm"
+            label={s.role === "host" ? "Lihat link undangan" : "Keluar dari booth"}
+            onClick={() => {
+              if (s.role === "host") {
+                s.backToInvite()
+                return
+              }
+              s.leave()
+              router.push("/")
+            }}
+          />
           <span className="inline-flex items-center gap-2 rounded-full bg-card px-3 py-[7px] text-caption text-faint-foreground">
             Room
             <span className="font-display text-small font-semibold tracking-[0.1em] text-foreground">{s.code}</span>
@@ -78,6 +87,7 @@ export function LobbyScreen() {
               placeholder={t.placeholder}
               background={t.bg}
               filter={filterCss}
+              onEditName={"mine" in t ? () => setEditingName(true) : undefined}
             />
           ))}
         </div>
@@ -112,6 +122,10 @@ export function LobbyScreen() {
           {readyHint}
         </span>
       </section>
+
+      {editingName && (
+        <NicknameDialog open current={s.me.name} onOpenChange={setEditingName} onSave={s.setNickname} />
+      )}
     </div>
   )
 }

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { useSession } from "@/stores/session"
 import { PaywallSheet } from "./paywall-sheet"
 import { CaptureScreen } from "./screens/capture-screen"
+import { ConnectingScreen } from "./screens/connecting-screen"
 import { ErrorScreen } from "./screens/error-screen"
 import { InviteScreen } from "./screens/invite-screen"
 import { LobbyScreen } from "./screens/lobby-screen"
@@ -15,6 +16,7 @@ import { ResultScreen } from "./screens/result-screen"
 import { ReviewScreen } from "./screens/review-screen"
 
 const SCREENS: Record<Screen, () => React.ReactNode> = {
+  connecting: ConnectingScreen,
   undang: InviteScreen,
   izin: PermissionScreen,
   lobby: LobbyScreen,

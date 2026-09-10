@@ -26,7 +26,13 @@ export function CaptureScreen() {
   const { idx, phase, count, prompt } = s.shot
 
   const hint =
-    phase === "prompt" ? "Ketuk buat mulai hitung mundur" : phase === "count" ? "Tahan pose…" : "Menyimpan foto…"
+    phase === "prompt"
+      ? "Ketuk buat mulai hitung mundur"
+      : phase === "count"
+        ? "Tahan pose…"
+        : phase === "idle"
+          ? "Siap-siap…"
+          : "Menyimpan foto…"
 
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center gap-4 px-5 pt-3 pb-7 text-center">

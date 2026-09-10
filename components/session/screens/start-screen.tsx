@@ -14,7 +14,9 @@ export function StartScreen() {
   useEffect(() => {
     if (started.current) return
     started.current = true
-    router.replace(`/r/${createRoom()}`)
+    createRoom()
+      .then((code) => router.replace(`/r/${code}`))
+      .catch(() => router.replace("/"))
   }, [createRoom, router])
 
   return (

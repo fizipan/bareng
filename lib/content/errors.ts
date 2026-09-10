@@ -20,6 +20,11 @@ export const ERROR_COPY = {
     why: "Nggak ada yang masuk lebih dari 15 menit, jadi room ini kami tutup.",
     cta: "Buat room baru",
   },
+  jaringan: {
+    title: "Belum bisa nyambung",
+    why: "Internet kamu atau server kami lagi bermasalah. Tunggu sebentar, lalu coba lagi.",
+    cta: "Coba lagi",
+  },
   "tidak-ada": {
     title: "Room nggak ketemu",
     why: "Kodenya mungkin salah ketik, atau room-nya sudah ditutup.",

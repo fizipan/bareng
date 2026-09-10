@@ -52,7 +52,7 @@ export function PublicResult({ data }: { data: PublicResultData }) {
         <StripIcon data-icon="inline-start" />
         Bikin punyamu
       </Button>
-      <ReportButton />
+      <ReportButton slug={data.slug} />
     </main>
   )
 }

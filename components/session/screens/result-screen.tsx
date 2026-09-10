@@ -22,6 +22,7 @@ import { PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
 import { formatStripDate } from "@/lib/format"
 import { getFilter } from "@/lib/templates/filters"
 import { getTemplate } from "@/lib/templates/builtin"
+import { warn } from "@/lib/toast"
 import { useSession } from "@/stores/session"
 import { TemplatePicker } from "../template-picker"
 
@@ -139,9 +140,15 @@ export function ResultScreen() {
           </DialogHeader>
           <div className="flex flex-col gap-2">
             <Button
-              onClick={() => {
+              onClick={async () => {
                 setConfirmDelete(false)
-                s.deleteResult()
+                try {
+                  await s.deleteResult()
+                  s.reset()
+                  router.push("/")
+                } catch {
+                  warn("Belum bisa menghapus, coba lagi")
+                }
               }}
             >
               Hapus foto

@@ -18,6 +18,7 @@ export function InviteScreen() {
   const attempt = useSession((s) => s.reconnectAttempt)
   const partner = useSession((s) => s.partner)
   const leave = useSession((s) => s.leave)
+  const closeInvite = useSession((s) => s.closeInvite)
   const copyInviteLink = useSession((s) => s.copyInviteLink)
   const shareWhatsApp = useSession((s) => s.shareWhatsApp)
 
@@ -31,8 +32,12 @@ export function InviteScreen() {
 
       <div className="flex w-full items-center justify-between">
         <BackButton
-          label="Batal"
+          label={partner?.joined ? "Kembali ke booth" : "Batal"}
           onClick={() => {
+            if (partner?.joined) {
+              closeInvite()
+              return
+            }
             leave()
             router.push("/")
           }}

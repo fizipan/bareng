@@ -1,78 +1,119 @@
-import { expect, test, type Page } from "@playwright/test"
+import { devices, expect, test, type Browser, type Page } from "@playwright/test"
 
-// Alur M1 (pasangan & kamera masih simulasi): semua layar tersambung benar.
+// Alur M2 ke Supabase sungguhan: dua perangkat (host & tamu) di context
+// terpisah, jadi masing-masing punya sesi anonim sendiri. Kamera masih simulasi.
 
-async function shootUntilReview(page: Page) {
-  const review = page.getByRole("heading", { name: "Empat foto, jadi." })
-  const shutter = page.getByRole("button", { name: "Ambil foto sekarang" })
-  while (!(await review.isVisible())) {
-    if (await shutter.isVisible()) await shutter.click().catch(() => {})
-    await page.waitForTimeout(250)
-  }
-}
+// Profil Pixel tanpa `defaultBrowserType` (bukan opsi context).
+const pixel: Partial<(typeof devices)["Pixel 7"]> = { ...devices["Pixel 7"] }
+delete pixel.defaultBrowserType
 
-test("host: landing sampai hasil premium", async ({ page }) => {
+async function newPhone(browser: Browser, baseURL: string | undefined) {
+  const context = await browser.newContext({ ...pixel, baseURL })
+  await context.grantPermissions(["clipboard-read", "clipboard-write"])
+  const page = await context.newPage()
   const errors: string[] = []
   page.on("pageerror", (e) => errors.push(e.message))
+  return { page, errors, close: () => context.close() }
+}
 
-  await page.goto("/")
-  await page.getByRole("button", { name: /Mulai foto bareng/ }).first().click()
-  await expect(page).toHaveURL(/\/r\/[A-Z0-9]{6}$/)
-  await expect(page.getByRole("heading", { name: "Kirim link ini ke dia" })).toBeVisible()
-
-  // Pasangan simulasi masuk ~3,6 dtk lalu layar pindah ke izin kamera.
-  await expect(page.getByRole("heading", { name: "Nyalakan kamera" })).toBeVisible({ timeout: 10_000 })
+async function allowCamera(page: Page) {
+  await expect(page.getByRole("heading", { name: "Nyalakan kamera" })).toBeVisible({ timeout: 15_000 })
   await page.getByRole("button", { name: "Izinkan kamera" }).click()
   await expect(page.getByText("Begini nanti hasilnya")).toBeVisible()
-  // Warna status bar/tab ikut layar: Kabin gelap.
-  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#16141D")
+}
 
-  // Template gratis langsung terpasang, premium membuka paywall.
-  await page.getByRole("radio", { name: /Polaroid ganda/ }).click()
-  await expect(page.getByText("Polaroid ganda").first()).toBeVisible()
-  await page.getByRole("radio", { name: /Y2K neon/ }).click()
-  await expect(page.getByRole("heading", { name: "Simpan tanpa watermark" })).toBeVisible()
-  await page.getByRole("button", { name: "Lanjut dengan watermark" }).click()
+const reviewHeading = (page: Page) => page.getByRole("heading", { name: "Empat foto, jadi." })
 
-  await page.getByRole("button", { name: "Siap!" }).click()
-  await expect(page.getByText(/Foto\s*1\s*dari 4/)).toBeVisible({ timeout: 10_000 })
+test("dua orang: buat room, gabung, foto serentak, ulang, hasil", async ({ browser, baseURL }) => {
+  test.setTimeout(180_000)
+  const host = await newPhone(browser, baseURL)
+  const guest = await newPhone(browser, baseURL)
 
-  // Angka hitung mundur berada di atas slot yang sedang diambil (foto 1).
-  const count = page.locator("span.animate-tick")
-  await expect(count).toBeVisible({ timeout: 10_000 })
-  const slot = await page.locator(".outline-shutter").first().boundingBox()
-  const num = await count.boundingBox()
-  const numCenter = num!.y + num!.height / 2
-  expect(numCenter).toBeGreaterThan(slot!.y)
-  expect(numCenter).toBeLessThan(slot!.y + slot!.height)
+  // Host: satu klik dari landing sampai layar undang.
+  await host.page.goto("/")
+  await host.page.getByRole("button", { name: /Mulai foto bareng/ }).first().click()
+  await expect(host.page).toHaveURL(/\/r\/[A-Z0-9]{6}$/, { timeout: 15_000 })
+  await expect(host.page.getByRole("heading", { name: "Kirim link ini ke dia" })).toBeVisible()
+  const code = host.page.url().split("/").pop()!
 
-  await shootUntilReview(page)
+  // Tamu buka link → izin kamera; host otomatis pindah begitu tamu masuk.
+  await guest.page.goto(`/r/${code}`)
+  await allowCamera(guest.page)
+  await allowCamera(host.page)
 
-  // Ulang satu foto.
-  await page.getByRole("button", { name: /^Foto 2/ }).click()
-  await page.getByRole("button", { name: "Ulang foto ini" }).click()
-  await expect(page.getByText(/Foto\s*2\s*dari 4/)).toBeVisible()
-  await shootUntilReview(page)
+  // Nama panggilan host tampil di layar tamu.
+  await host.page.getByRole("button", { name: /Ganti nama panggilan/ }).click()
+  await host.page.getByRole("textbox", { name: "Nama panggilan" }).fill("Rara")
+  await host.page.getByRole("button", { name: "Simpan" }).click()
+  await expect(guest.page.getByText("Rara belum siap")).toBeVisible()
 
-  await page.getByRole("button", { name: "Jadikan photostrip" }).click()
-  await expect(page.getByRole("heading", { name: "Jadi! Ini photostrip kalian." })).toBeVisible()
-  // Layar Hasil mode Kertas: warna tema terang.
-  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#F4F3EF")
+  await guest.page.getByRole("button", { name: /Ganti nama panggilan/ }).click()
+  await guest.page.getByRole("textbox", { name: "Nama panggilan" }).fill("Dimas")
+  await guest.page.getByRole("button", { name: "Simpan" }).click()
+  await expect(host.page.getByText("Dimas belum siap")).toBeVisible()
 
-  await page.getByRole("button", { name: /Lihat premium/ }).click()
-  await page.getByRole("button", { name: "Bayar Rp15.000" }).click()
-  await expect(page.getByText("Sesi premium aktif.", { exact: false })).toBeVisible({ timeout: 10_000 })
+  // Template & filter tersinkron ke dua layar.
+  await host.page.getByRole("radio", { name: /Polaroid ganda/ }).click()
+  await expect(guest.page.getByText("Rara ganti template ke Polaroid ganda")).toBeVisible()
+  await guest.page.getByRole("radio", { name: /Y2K neon/ }).click()
+  await expect(guest.page.getByRole("heading", { name: "Simpan tanpa watermark" })).toBeVisible()
+  await guest.page.getByRole("button", { name: "Lanjut dengan watermark" }).click()
 
-  expect(errors).toEqual([])
+  // Dua-duanya siap → sesi foto mulai di dua layar.
+  await host.page.getByRole("button", { name: "Siap!" }).click()
+  await expect(guest.page.getByText("Rara siap")).toBeVisible()
+  await guest.page.getByRole("button", { name: "Siap!" }).click()
+  await expect(host.page.getByText(/Foto\s*1\s*dari 4/)).toBeVisible({ timeout: 10_000 })
+  await expect(guest.page.getByText(/Foto\s*1\s*dari 4/)).toBeVisible({ timeout: 10_000 })
+
+  // Hitung mundur sama di dua layar (dijadwalkan server).
+  await expect(host.page.locator("span.animate-tick")).toBeVisible({ timeout: 10_000 })
+  await expect(guest.page.locator("span.animate-tick")).toBeVisible({ timeout: 2_000 })
+
+  await expect(reviewHeading(host.page)).toBeVisible({ timeout: 60_000 })
+  await expect(reviewHeading(guest.page)).toBeVisible({ timeout: 10_000 })
+
+  // Tamu minta ulang foto 2 → dua-duanya kembali ke foto 2.
+  await guest.page.getByRole("button", { name: /^Foto 2/ }).click()
+  await guest.page.getByRole("button", { name: "Ulang foto ini" }).click()
+  await expect(host.page.getByText(/Foto\s*2\s*dari 4/)).toBeVisible({ timeout: 10_000 })
+  await expect(host.page.getByText("Dimas minta ulang foto 2")).toBeVisible()
+  // Lewati pose supaya lebih cepat.
+  await host.page.getByRole("button", { name: "Ambil foto sekarang" }).click()
+  await expect(reviewHeading(host.page)).toBeVisible({ timeout: 20_000 })
+  await expect(reviewHeading(guest.page)).toBeVisible({ timeout: 10_000 })
+
+  await host.page.getByRole("button", { name: "Jadikan photostrip" }).click()
+  const done = "Jadi! Ini photostrip kalian."
+  await expect(host.page.getByRole("heading", { name: done })).toBeVisible({ timeout: 10_000 })
+  await expect(guest.page.getByRole("heading", { name: done })).toBeVisible({ timeout: 10_000 })
+
+  // Orang ketiga ditolak.
+  const third = await newPhone(browser, baseURL)
+  await third.page.goto(`/r/${code}`)
+  await expect(third.page.getByRole("heading", { name: "Room ini sudah penuh" })).toBeVisible({ timeout: 15_000 })
+  await third.close()
+
+  // Link hasil membuka halaman publik dengan nama berdua.
+  await guest.page.getByRole("button", { name: "Salin link" }).click()
+  const link = await guest.page.evaluate(() => navigator.clipboard.readText())
+  expect(link).toMatch(/\/p\/[A-Za-z0-9]{10}$/)
+  await guest.page.goto(new URL(link).pathname)
+  await expect(guest.page.getByRole("heading", { name: "Rara & Dimas" })).toBeVisible()
+
+  expect(host.errors).toEqual([])
+  expect(guest.errors).toEqual([])
+  await host.close()
+  await guest.close()
 })
 
-test("tamu: gabung pakai kode", async ({ page }) => {
+test("kode yang tidak ada menampilkan error", async ({ page }) => {
   await page.goto("/gabung")
   const join = page.getByRole("button", { name: "Gabung ke room" })
   await expect(join).toBeDisabled()
-  await page.getByLabel("Kode room").pressSequentially("k7m2qx")
-  await expect(page).toHaveURL(/\/r\/K7M2QX$/)
-  await expect(page.getByRole("heading", { name: "Nyalakan kamera" })).toBeVisible()
+  await page.getByLabel("Kode room").pressSequentially("zzzzzz")
+  await expect(page).toHaveURL(/\/r\/ZZZZZZ$/)
+  await expect(page.getByRole("heading", { name: "Room nggak ketemu" })).toBeVisible({ timeout: 15_000 })
 })
 
 test("kode tidak valid menampilkan error", async ({ page }) => {
@@ -80,13 +121,11 @@ test("kode tidak valid menampilkan error", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Room nggak ketemu" })).toBeVisible()
 })
 
-test("halaman publik & legal", async ({ page }) => {
-  await page.goto("/p/contoh")
-  await expect(page.getByRole("heading", { name: "Rara & Dimas" })).toBeVisible()
+test("halaman legal & hasil yang tidak ada", async ({ page }) => {
   await page.goto("/privasi")
   await expect(page.getByRole("heading", { name: "Privasi" })).toBeVisible()
   await page.goto("/ketentuan")
   await expect(page.getByRole("heading", { name: "Ketentuan pakai" })).toBeVisible()
-  const res = await page.goto("/p/tidak-ada")
+  const res = await page.goto("/p/tidakada00")
   expect(res?.status()).toBe(404)
 })

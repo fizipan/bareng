@@ -4,7 +4,7 @@ import type { FilterId } from "@/lib/templates/filters"
 // Model sesi yang dibaca layar. Sumber datanya bisa simulasi (M1) atau
 // Supabase + WebRTC (M2+); layar tidak perlu tahu bedanya.
 
-export type Screen = "undang" | "izin" | "lobby" | "capture" | "review" | "hasil" | "error"
+export type Screen = "connecting" | "undang" | "izin" | "lobby" | "capture" | "review" | "hasil" | "error"
 export type Role = "host" | "guest"
 export type Tier = "free" | "premium"
 export type Conn = "ok" | "lambat" | "putus"
@@ -30,7 +30,7 @@ export type SessionState = {
   filterId: FilterId
   sound: boolean
   me: Person
-  partner: (Person & { joined: boolean }) | null
+  partner: (Person & { joined: boolean; id?: string }) | null
   shot: { idx: number; phase: ShotPhase; count: number; prompt: string }
   frames: (Frame | null)[]
   retakeQueue: number[]
@@ -40,11 +40,13 @@ export type SessionState = {
 }
 
 export type SessionActions = {
-  createRoom: () => string
-  enterRoom: (code: string) => void
+  createRoom: () => Promise<string>
+  enterRoom: (code: string) => Promise<void>
   fail: (kind: ErrorKind) => void
   leave: () => void
   backToInvite: () => void
+  closeInvite: () => void
+  setNickname: (name: string) => void
   allowCamera: () => void
   denyCamera: () => void
   copyInviteLink: () => void
@@ -61,7 +63,7 @@ export type SessionActions = {
   download: () => void
   share: () => void
   copyResultLink: () => void
-  deleteResult: () => void
+  deleteResult: () => Promise<void>
   openPaywall: () => void
   closePaywall: () => void
   pay: () => void

@@ -1,4 +1,4 @@
-import { CameraIcon } from "lucide-react"
+import { CameraIcon, PencilIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type TileState = "live" | "loading" | "waiting"
@@ -11,6 +11,7 @@ export function VideoTile({
   placeholder,
   background,
   filter,
+  onEditName,
   className,
 }: {
   name: string
@@ -18,6 +19,7 @@ export function VideoTile({
   placeholder?: string
   background?: string
   filter?: string
+  onEditName?: () => void
   className?: string
 }) {
   return (
@@ -53,12 +55,24 @@ export function VideoTile({
           Bagikan link ke dia
         </div>
       )}
-      {state !== "waiting" && (
-        <span className="absolute top-2 left-2 inline-flex items-center gap-[5px] rounded-full bg-darkroom/75 px-[9px] py-1 text-micro text-kertas">
-          <span aria-hidden className={cn("size-1.5 rounded-full", state === "live" ? "bg-ok" : "bg-grain")} />
-          {name}
-        </span>
-      )}
+      {state !== "waiting" &&
+        (onEditName ? (
+          <button
+            type="button"
+            onClick={onEditName}
+            aria-label={`Ganti nama panggilan (${name})`}
+            className="absolute top-2 left-2 inline-flex min-h-6 items-center gap-[5px] rounded-full bg-darkroom/75 px-[9px] py-1 text-micro text-kertas outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <span aria-hidden className={cn("size-1.5 rounded-full", state === "live" ? "bg-ok" : "bg-grain")} />
+            {name}
+            <PencilIcon aria-hidden className="size-2.5 text-kabin-soft" />
+          </button>
+        ) : (
+          <span className="absolute top-2 left-2 inline-flex items-center gap-[5px] rounded-full bg-darkroom/75 px-[9px] py-1 text-micro text-kertas">
+            <span aria-hidden className={cn("size-1.5 rounded-full", state === "live" ? "bg-ok" : "bg-grain")} />
+            {name}
+          </span>
+        ))}
     </div>
   )
 }

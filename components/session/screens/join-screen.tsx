@@ -6,6 +6,7 @@ import { ArrowRightIcon, PlusIcon } from "lucide-react"
 import { Logo } from "@/components/brand/logo"
 import { Button } from "@/components/ui/button"
 import { lookBackground } from "@/lib/templates/placeholder"
+import { warn } from "@/lib/toast"
 import { useSession } from "@/stores/session"
 import { BackButton } from "../back-button"
 import { ROOM_CODE_LENGTH, RoomCodeInput } from "../room-code-input"
@@ -63,7 +64,13 @@ export function JoinScreen() {
             type="button"
             variant="secondary"
             className="text-label"
-            onClick={() => router.push(`/r/${createRoom()}`)}
+            onClick={async () => {
+              try {
+                router.push(`/r/${await createRoom()}`)
+              } catch {
+                warn("Belum bisa bikin room, coba lagi sebentar")
+              }
+            }}
           >
             <PlusIcon data-icon="inline-start" />
             Buat room sendiri

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { RotateCcwIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ERROR_COPY, type ErrorKind } from "@/lib/content/errors"
+import { warn } from "@/lib/toast"
 import { useSession } from "@/stores/session"
 
 // State error & edge (prototipe baris 1029–1072): apa yang terjadi, kenapa,
@@ -15,12 +16,16 @@ export function ErrorScreen() {
   const createRoom = useSession((s) => s.createRoom)
   const copy = ERROR_COPY[kind]
 
-  const act = () => {
-    if (kind === "camera" || kind === "putus") {
+  const act = async () => {
+    if (kind === "camera" || kind === "putus" || kind === "jaringan") {
       errorAction()
       return
     }
-    router.replace(`/r/${createRoom()}`)
+    try {
+      router.replace(`/r/${await createRoom()}`)
+    } catch {
+      warn("Belum bisa bikin room, coba lagi sebentar")
+    }
   }
 
   return (
@@ -70,6 +75,17 @@ function Illustration({ kind }: { kind: ErrorKind }) {
         <span className="h-10 w-[52px] rounded-[8px] border-2 border-kertas" />
         <span className="h-[3px] w-[22px] bg-grain" />
         <span className="size-3 animate-[blink_1.4s_ease-in-out_infinite] rounded-full bg-flash" />
+        <span className="h-[3px] w-[22px] bg-kabin-line" />
+        <span className="h-10 w-[52px] rounded-[8px] border-2 border-dashed border-grain" />
+      </span>
+    )
+  }
+  if (kind === "jaringan") {
+    return (
+      <span aria-hidden className="relative flex items-center gap-2.5">
+        <span className="h-10 w-[52px] rounded-[8px] border-2 border-kertas" />
+        <span className="h-[3px] w-[22px] bg-grain" />
+        <span className="size-3 rounded-full bg-shutter" />
         <span className="h-[3px] w-[22px] bg-kabin-line" />
         <span className="h-10 w-[52px] rounded-[8px] border-2 border-dashed border-grain" />
       </span>
