@@ -127,8 +127,12 @@ test("dua orang: buat room, gabung, foto serentak, ulang, hasil", async ({ brows
   await guest.page.getByRole("button", { name: "Ulang foto ini" }).click()
   await expect(host.page.getByText(/Foto\s*2\s*dari 4/)).toBeVisible({ timeout: 10_000 })
   await expect(host.page.getByText("Dimas minta ulang foto 2")).toBeVisible()
-  // Lewati pose supaya lebih cepat.
-  await host.page.getByRole("button", { name: "Ambil foto sekarang" }).click()
+  // Lewati pose kalau masih sempat; kalau fase pose sudah lewat (jaringan
+  // lambat), hitung mundur tetap jalan sendiri sesuai jadwal server.
+  await host.page
+    .getByRole("button", { name: "Ambil foto sekarang" })
+    .click({ timeout: 2_000 })
+    .catch(() => {})
   await expect(reviewHeading(host.page)).toBeVisible({ timeout: 20_000 })
   await expect(reviewHeading(guest.page)).toBeVisible({ timeout: 10_000 })
 
