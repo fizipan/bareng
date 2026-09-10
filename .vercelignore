@@ -1,0 +1,6 @@
+# Jangan ikut di-upload saat deploy lewat CLI
+public/_proto
+test-results
+playwright-report
+.next
+node_modules
