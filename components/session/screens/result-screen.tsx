@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { CopyIcon, DownloadIcon, FileImageIcon, PlusIcon, Share2Icon, Trash2Icon } from "lucide-react"
 import { ActionTile, actionTileFrame } from "@/components/common/action-tile"
-import { InstallCard } from "@/components/pwa/install-button"
+import { InstallTile } from "@/components/pwa/install-button"
 import { FrameFill } from "@/components/strip/frame-fill"
 import { Strip } from "@/components/strip/strip"
 import { Button } from "@/components/ui/button"
@@ -93,8 +93,6 @@ export function ResultScreen() {
         </div>
       )}
 
-      <InstallCard />
-
       <section className="flex w-full flex-col gap-2.5 text-left">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="text-small font-semibold">Ganti template</h2>
@@ -124,6 +122,7 @@ export function ResultScreen() {
         >
           <ActionTile icon={<PlusIcon />} title="Foto lagi" description="Mulai sesi baru dari awal" />
         </button>
+        <InstallTile autoOpen />
         <Button variant="ghost" size="sm" className="self-center text-muted-foreground" onClick={() => setConfirmDelete(true)}>
           <Trash2Icon data-icon="inline-start" />
           Hapus foto ini

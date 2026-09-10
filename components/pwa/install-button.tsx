@@ -1,85 +1,76 @@
 "use client"
 
-import { useSyncExternalStore } from "react"
-import { DownloadIcon, XIcon } from "lucide-react"
+import { useEffect } from "react"
+import { DownloadIcon } from "lucide-react"
 import { LogoMark } from "@/components/brand/logo"
-import { Button } from "@/components/ui/button"
+import { ActionTile, actionTileFrame } from "@/components/common/action-tile"
 import { cn } from "@/lib/utils"
-import { useCanInstall, usePwa } from "@/stores/pwa"
+import { isInstallSnoozed, useCanInstall, usePwa } from "@/stores/pwa"
 
-// Tombol "Pasang aplikasi". Muncul hanya kalau bisa dipasang: Android/desktop
-// Chromium membuka prompt bawaan, iOS membuka panduan Tambah ke Layar Utama.
-export function InstallButton({ variant = "link", className }: { variant?: "link" | "footer"; className?: string }) {
+// Semua pemicu hanya membuka bottom sheet pasang (install-sheet.tsx) dan hanya
+// tampil kalau aplikasi memang bisa dipasang & belum terpasang.
+
+// Chip di hero landing.
+export function InstallChip({ className }: { className?: string }) {
   const canInstall = useCanInstall()
-  const install = usePwa((s) => s.install)
+  const openSheet = usePwa((s) => s.openSheet)
   if (!canInstall) return null
-
-  if (variant === "footer") {
-    return (
-      <li>
-        <button
-          type="button"
-          onClick={() => install()}
-          className={cn("text-left text-kertas/90 underline-offset-4 hover:text-kertas hover:underline", className)}
-        >
-          Pasang aplikasi
-        </button>
-      </li>
-    )
-  }
   return (
-    <Button variant="link" size="inline" className={cn("self-start", className)} onClick={() => install()}>
-      <DownloadIcon data-icon="inline-start" />
-      Pasang aplikasinya di HP
-    </Button>
+    <button
+      type="button"
+      onClick={openSheet}
+      className={cn(
+        "inline-flex items-center gap-2.5 self-start rounded-full border-[1.5px] border-line bg-sunken py-1.5 pr-4 pl-1.5 text-caption font-semibold outline-none transition-colors hover:border-outline-subtle focus-visible:ring-3 focus-visible:ring-ring/50",
+        className
+      )}
+    >
+      <LogoMark size={24} />
+      Pasang aplikasinya
+      <DownloadIcon aria-hidden className="size-3.5 text-muted-foreground" />
+    </button>
   )
 }
 
-const DISMISS_KEY = "bareng:install-card-dismissed"
-const subscribe = (cb: () => void) => {
-  window.addEventListener("storage", cb)
-  return () => window.removeEventListener("storage", cb)
-}
-const readDismissed = () => {
-  try {
-    return localStorage.getItem(DISMISS_KEY) === "1"
-  } catch {
-    return false
-  }
-}
-
-// Kartu ajakan pasang setelah sesi pertama selesai (PRD P1).
-export function InstallCard({ className }: { className?: string }) {
+// Item daftar di footer (mode gelap).
+export function InstallFooterLink() {
   const canInstall = useCanInstall()
-  const install = usePwa((s) => s.install)
-  const dismissed = useSyncExternalStore(subscribe, readDismissed, () => true)
-  if (!canInstall || dismissed) return null
-
-  const dismiss = () => {
-    try {
-      localStorage.setItem(DISMISS_KEY, "1")
-      window.dispatchEvent(new StorageEvent("storage"))
-    } catch {}
-  }
-
+  const openSheet = usePwa((s) => s.openSheet)
+  if (!canInstall) return null
   return (
-    <div className={cn("relative flex w-full items-center gap-3 rounded-md border-[1.5px] border-line p-3.5 text-left", className)}>
-      <LogoMark size={40} />
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="text-small font-semibold">Pasang Bareng di HP</span>
-        <span className="text-caption text-muted-foreground">Nanti tinggal buka dari layar utama.</span>
-      </span>
-      <Button size="sm" className="h-9 px-3.5" onClick={() => install()}>
-        Pasang
-      </Button>
+    <li>
       <button
         type="button"
-        aria-label="Tutup ajakan pasang"
-        onClick={dismiss}
-        className="absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full bg-card text-muted-foreground"
+        onClick={openSheet}
+        className="text-left text-kertas/90 underline-offset-4 hover:text-kertas hover:underline"
       >
-        <XIcon className="size-3.5" />
+        Pasang aplikasi
       </button>
-    </div>
+    </li>
+  )
+}
+
+// Tile di "Lanjut ke mana?" layar Hasil. Setelah sesi pertama selesai, sheet
+// juga terbuka sendiri sekali (PRD P1: ajakan pasang setelah sesi pertama).
+export function InstallTile({ autoOpen = false }: { autoOpen?: boolean }) {
+  const canInstall = useCanInstall()
+  const openSheet = usePwa((s) => s.openSheet)
+
+  useEffect(() => {
+    if (!autoOpen || !canInstall || isInstallSnoozed()) return
+    // Tunggu strip selesai keluar dari mesin dulu.
+    const t = setTimeout(openSheet, 2200)
+    return () => clearTimeout(t)
+  }, [autoOpen, canInstall, openSheet])
+
+  if (!canInstall) return null
+  return (
+    <button type="button" className={actionTileFrame} onClick={openSheet}>
+      <ActionTile
+        icon={<LogoMark size={32} />}
+        iconClassName="bg-transparent"
+        title="Pasang aplikasi"
+        description="Buka Bareng langsung dari layar utama"
+      />
+    </button>
   )
 }

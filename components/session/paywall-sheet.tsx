@@ -45,7 +45,7 @@ export function PaywallSheet() {
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="kertas" container={frame?.container}>
-        <div className="mx-auto flex w-full max-w-[440px] flex-col gap-[18px] px-5 pt-[22px] pb-[max(26px,env(safe-area-inset-bottom))]">
+        <div className="mx-auto flex min-h-0 w-full max-w-[440px] flex-1 flex-col gap-[18px] overflow-y-auto overscroll-contain px-5 pt-[22px] pb-[max(26px,env(safe-area-inset-bottom))]">
           <div className="flex flex-col gap-1.5">
             <DrawerTitle className="text-[26px] leading-tight">{TITLE}</DrawerTitle>
             <DrawerDescription className="max-w-[40ch] text-left text-soft-foreground">{DESCRIPTION}</DrawerDescription>

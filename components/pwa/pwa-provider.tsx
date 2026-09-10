@@ -5,7 +5,7 @@ import { RefreshCwIcon } from "lucide-react"
 import { toast } from "sonner"
 import { notify } from "@/lib/toast"
 import { usePwa, type BeforeInstallPromptEvent } from "@/stores/pwa"
-import { IosInstallSheet } from "./ios-install-sheet"
+import { InstallSheet } from "./install-sheet"
 
 const UPDATE_CHECK_MS = 30 * 60 * 1000
 
@@ -108,5 +108,5 @@ export function PwaProvider() {
     }
   }, [])
 
-  return <IosInstallSheet />
+  return <InstallSheet />
 }

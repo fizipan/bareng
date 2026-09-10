@@ -10,7 +10,7 @@ import { DEMO_FRAMES } from "@/lib/session/demo"
 import { BUILTIN_TEMPLATES, getTemplate } from "@/lib/templates/builtin"
 import { LOOKS, lookBackground } from "@/lib/templates/placeholder"
 import { cn } from "@/lib/utils"
-import { InstallButton } from "@/components/pwa/install-button"
+import { InstallChip, InstallFooterLink } from "@/components/pwa/install-button"
 import { Faq } from "./faq"
 import { StartButton } from "./start-button"
 
@@ -56,7 +56,7 @@ export function Landing() {
               </Link>
             </div>
             <span className="text-meta text-muted-foreground">Satu link, dua orang, 90 detik.</span>
-            <InstallButton className="-mt-1.5" />
+            <InstallChip />
           </div>
         </section>
 
@@ -578,7 +578,7 @@ function Footer() {
                     </Link>
                   </li>
                 ))}
-                {group.title === "Mulai" && <InstallButton variant="footer" />}
+                {group.title === "Mulai" && <InstallFooterLink />}
               </ul>
             </nav>
           ))}
