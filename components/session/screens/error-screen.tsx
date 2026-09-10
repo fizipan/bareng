@@ -1,11 +1,13 @@
 "use client"
 
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { RotateCcwIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ERROR_COPY, type ErrorKind } from "@/lib/content/errors"
 import { warn } from "@/lib/toast"
 import { useSession } from "@/stores/session"
+import { CameraHelpSheet } from "../camera-help-sheet"
 
 // State error & edge (prototipe baris 1029–1072): apa yang terjadi, kenapa,
 // satu tombol tindakan.
@@ -15,9 +17,14 @@ export function ErrorScreen() {
   const errorAction = useSession((s) => s.errorAction)
   const createRoom = useSession((s) => s.createRoom)
   const copy = ERROR_COPY[kind]
+  const [help, setHelp] = useState(false)
 
   const act = async () => {
-    if (kind === "camera" || kind === "putus" || kind === "jaringan") {
+    if (kind === "camera") {
+      setHelp(true)
+      return
+    }
+    if (kind === "putus" || kind === "jaringan") {
       errorAction()
       return
     }
@@ -42,6 +49,16 @@ export function ErrorScreen() {
         <RotateCcwIcon data-icon="inline-start" />
         {copy.cta}
       </Button>
+      {kind === "camera" && (
+        <CameraHelpSheet
+          open={help}
+          onOpenChange={setHelp}
+          onRetry={() => {
+            setHelp(false)
+            errorAction()
+          }}
+        />
+      )}
     </div>
   )
 }

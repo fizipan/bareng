@@ -12,8 +12,10 @@ import { LIVE_A, LIVE_B } from "@/lib/templates/placeholder"
 import type { StripTemplate } from "@/lib/templates/schema"
 import type { Frame, Role } from "@/lib/session/types"
 import { cn } from "@/lib/utils"
+import { useMedia } from "@/stores/media"
 import { useSession } from "@/stores/session"
 import { ConnectionPill } from "../connection-pill"
+import { LiveVideo } from "../live-video"
 
 // Layar Capture (prototipe baris 607–691). Foto diambil langsung di dalam
 // template: slot aktif menyala merah berisi feed kamu & dia, slot yang sudah
@@ -21,6 +23,8 @@ import { ConnectionPill } from "../connection-pill"
 // akhir, jadi yang terlihat di sini = crop di photostrip.
 export function CaptureScreen() {
   const s = useSession()
+  const local = useMedia((m) => m.local)
+  const remote = useMedia((m) => m.remote)
   const template = getTemplate(s.templateId)
   const filterCss = getFilter(s.filterId).css
   const { idx, phase, count, prompt } = s.shot
@@ -50,6 +54,8 @@ export function CaptureScreen() {
         frames={s.frames}
         activeIdx={idx}
         role={s.role}
+        local={local}
+        remote={remote}
         filterCss={filterCss}
         counting={phase === "count"}
         count={count}
@@ -99,6 +105,8 @@ function StripWindow({
   frames,
   activeIdx,
   role,
+  local,
+  remote,
   filterCss,
   counting,
   count,
@@ -107,6 +115,8 @@ function StripWindow({
   frames: (Frame | null)[]
   activeIdx: number
   role: Role
+  local: MediaStream | null
+  remote: MediaStream | null
   filterCss: string
   counting: boolean
   count: number
@@ -141,6 +151,8 @@ function StripWindow({
 
   const tokens = { date: formatStripDate(new Date()), host: SITE_HOST }
   const labels = role === "host" ? { a: "kamu", b: "dia" } : { a: "dia", b: "kamu" }
+  // Setengah A = host, B = tamu (urutan strip sama di dua HP).
+  const feeds = role === "host" ? { a: local, b: remote } : { a: remote, b: local }
 
   return (
     <div
@@ -164,9 +176,13 @@ function StripWindow({
             const f = frames[i]
             if (f) return <FrameFill source={f[side]} side={side} />
             if (i !== activeIdx) return null
+            const stream = feeds[side]
             return (
               <div className="absolute inset-0" style={{ background: side === "a" ? LIVE_A : LIVE_B }}>
-                <span className="absolute bottom-1 left-1.5 font-mono text-[9px] text-[#9C99A8]">{labels[side]}</span>
+                {stream && <LiveVideo stream={stream} feed={stream === local ? "local" : "remote"} />}
+                <span className="absolute bottom-1 left-1.5 rounded-[3px] bg-darkroom/50 px-1 font-mono text-[9px] text-[#C9C6D4]">
+                  {labels[side]}
+                </span>
               </div>
             )
           }}

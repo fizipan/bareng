@@ -8,11 +8,18 @@ type Handlers = {
   onState: (state: RoomSnapshot, event: RoomEvent | null) => void
   onPresence: (participantIds: string[]) => void
   onResync: () => void
+  onSignal: (payload: unknown) => void
+  onSubscribed: () => void
 }
 
-// Channel private `room:<id>`: snapshot state dari server + presence peserta.
-// Sinyal WebRTC (M3) juga lewat channel ini.
-export async function joinRoomChannel(roomId: string, participantId: string, handlers: Handlers) {
+export type RoomChannel = {
+  send: (event: "signal", payload: object) => void
+  leave: () => void
+}
+
+// Channel private `room:<id>`: snapshot state dari server, presence peserta,
+// dan sinyal WebRTC antar dua HP (offer/answer/ICE).
+export async function joinRoomChannel(roomId: string, participantId: string, handlers: Handlers): Promise<RoomChannel> {
   const sb = supabase()
   await sb.realtime.setAuth()
   let subscribedOnce = false
@@ -23,6 +30,7 @@ export async function joinRoomChannel(roomId: string, participantId: string, han
       const parsed = roomSnapshotSchema.safeParse(payload?.state)
       if (parsed.success) handlers.onState(parsed.data, (payload?.event as RoomEvent) ?? null)
     })
+    .on("broadcast", { event: "signal" }, ({ payload }) => handlers.onSignal(payload))
     .on("presence", { event: "sync" }, () => {
       handlers.onPresence(Object.keys(channel.presenceState()))
     })
@@ -32,10 +40,16 @@ export async function joinRoomChannel(roomId: string, participantId: string, han
       // Setelah sambung ulang, ambil snapshot terbaru supaya tidak ada event yang terlewat.
       if (subscribedOnce) handlers.onResync()
       subscribedOnce = true
+      handlers.onSubscribed()
     })
 
-  return () => {
-    channel.untrack().catch(() => {})
-    sb.removeChannel(channel)
+  return {
+    send: (event, payload) => {
+      void channel.send({ type: "broadcast", event, payload })
+    },
+    leave: () => {
+      channel.untrack().catch(() => {})
+      sb.removeChannel(channel)
+    },
   }
 }

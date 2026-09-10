@@ -6,6 +6,7 @@ import type { Screen } from "@/lib/session/types"
 import { cn } from "@/lib/utils"
 import { useSession } from "@/stores/session"
 import { PaywallSheet } from "./paywall-sheet"
+import { RemoteAudio } from "./remote-audio"
 import { CaptureScreen } from "./screens/capture-screen"
 import { ConnectingScreen } from "./screens/connecting-screen"
 import { ErrorScreen } from "./screens/error-screen"
@@ -42,6 +43,8 @@ export function SessionApp({ code, framed = false }: { code?: string; framed?: b
     if (framed || !code) return
     if (ROOM_CODE.test(code)) enterRoom(code)
     else fail("tidak-ada")
+    // Keluar halaman (tombol back, pindah room): matikan kamera & sambungan.
+    return () => useSession.getState().reset()
   }, [code, framed, enterRoom, fail])
 
   useEffect(() => {
@@ -58,11 +61,16 @@ export function SessionApp({ code, framed = false }: { code?: string; framed?: b
       mode={mode}
       className={cn(framed && "min-h-full", fixedHeight && (framed ? "h-full" : "h-dvh"), fixedHeight && "overflow-hidden")}
     >
-      <main key={screen} className="relative mx-auto flex min-h-0 w-full max-w-[440px] flex-1 animate-fade-in flex-col">
+      <main
+        key={screen}
+        data-screen={screen}
+        className="relative mx-auto flex min-h-0 w-full max-w-[440px] flex-1 animate-fade-in flex-col"
+      >
         <ScreenView />
       </main>
       {flashing && <div aria-hidden className="pointer-events-none fixed inset-0 z-50 animate-flash bg-kertas" />}
       <PaywallSheet />
+      {!framed && <RemoteAudio />}
     </ModeRoot>
   )
 }

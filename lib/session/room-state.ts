@@ -39,6 +39,13 @@ export type RoomEvent = { type: string; by: string | null; [key: string]: unknow
 
 export type Camera = "unknown" | "granted" | "denied"
 
+// Ringkasan sambungan video (lib/rtc/peer.ts) yang memengaruhi layar.
+export type LinkView = {
+  status: "idle" | "connecting" | "connected" | "reconnecting" | "failed"
+  attempt: number
+  quality: "ok" | "lambat"
+}
+
 // Fase satu foto dihitung dari jam server (sudah dikoreksi offset).
 export function shotPhase(shot: ServerShot | null, serverNow: number, anyFrameTaken: boolean): {
   phase: ShotPhase
@@ -68,12 +75,22 @@ export type RoomView = {
   retakeQueue: number[]
   result: { slug: string; createdAt: string } | null
   conn: Conn
+  reconnectAttempt: number
+}
+
+// Pill koneksi PRD §15.5: jujur soal keadaan sambungan ke pasangan.
+function connOf(partnerPresent: boolean, partnerOnline: boolean, link?: LinkView): { conn: Conn; attempt: number } {
+  if (!partnerPresent) return { conn: "ok", attempt: 0 }
+  if (link?.status === "reconnecting") return { conn: "putus", attempt: link.attempt }
+  if (!partnerOnline || link?.status === "failed") return { conn: "putus", attempt: 0 }
+  if (link?.status === "connected" && link.quality === "lambat") return { conn: "lambat", attempt: 0 }
+  return { conn: "ok", attempt: 0 }
 }
 
 // Petakan snapshot server + keadaan lokal perangkat ke layar yang tampil.
 export function deriveView(
   snap: RoomSnapshot,
-  local: { participantId: string; camera: Camera; showInvite: boolean; partnerOnline: boolean }
+  local: { participantId: string; camera: Camera; showInvite: boolean; partnerOnline: boolean; link?: LinkView }
 ): RoomView {
   const me = snap.participants.find((p) => p.id === local.participantId)
   const role: Role = me?.role ?? "guest"
@@ -91,22 +108,27 @@ export function deriveView(
   if (snap.status === "expired") {
     screen = "error"
     errorKind = "kadaluarsa"
+  } else if (snap.status === "done") {
+    screen = "hasil"
   } else if (role === "host" && (snap.status === "waiting" || local.showInvite)) {
     screen = "undang"
   } else if (local.camera === "denied") {
     screen = "error"
     errorKind = "camera"
-  } else if (local.camera !== "granted" && snap.status !== "done") {
+  } else if (local.camera !== "granted") {
     screen = "izin"
+  } else if (partnerRow && local.link?.status === "failed" && snap.status !== "review") {
+    // Sambung ulang otomatis sudah 3× gagal: tampilkan panduan manual.
+    screen = "error"
+    errorKind = "putus"
   } else if (snap.status === "capturing") {
     screen = "capture"
   } else if (snap.status === "review") {
     screen = "review"
-  } else if (snap.status === "done") {
-    screen = "hasil"
   } else {
     screen = "lobby"
   }
+  const { conn, attempt } = connOf(!!partnerRow, local.partnerOnline, local.link)
 
   return {
     code: snap.code,
@@ -123,7 +145,8 @@ export function deriveView(
     frames,
     retakeQueue: snap.retake_queue,
     result: snap.result ? { slug: snap.result.slug, createdAt: new Date(snap.result.created_at).toISOString() } : null,
-    conn: partnerRow && !local.partnerOnline ? "putus" : "ok",
+    conn,
+    reconnectAttempt: attempt,
   }
 }
 

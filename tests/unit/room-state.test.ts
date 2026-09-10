@@ -80,6 +80,17 @@ describe("deriveView", () => {
   it("pasangan offline → koneksi putus", () => {
     expect(deriveView(base, { ...local, partnerOnline: false }).conn).toBe("putus")
   })
+  it("sambungan video: lemot, mencoba lagi (n/3), lalu panduan manual", () => {
+    const link = (status: "connected" | "reconnecting" | "failed", attempt = 0, quality: "ok" | "lambat" = "ok") => ({
+      ...local,
+      link: { status, attempt, quality },
+    })
+    expect(deriveView(base, link("connected", 0, "lambat")).conn).toBe("lambat")
+    expect(deriveView(base, link("reconnecting", 2))).toMatchObject({ conn: "putus", reconnectAttempt: 2, screen: "lobby" })
+    expect(deriveView(base, link("failed"))).toMatchObject({ screen: "error", errorKind: "putus" })
+    // Di review foto sudah aman; tidak perlu menutup layar.
+    expect(deriveView({ ...base, status: "review" }, link("failed")).screen).toBe("review")
+  })
 })
 
 describe("partnerEventMessage", () => {

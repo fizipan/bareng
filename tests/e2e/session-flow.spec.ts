@@ -1,7 +1,8 @@
 import { devices, expect, test, type Browser, type Page } from "@playwright/test"
 
-// Alur M2 ke Supabase sungguhan: dua perangkat (host & tamu) di context
-// terpisah, jadi masing-masing punya sesi anonim sendiri. Kamera masih simulasi.
+// Alur ke Supabase sungguhan: dua perangkat (host & tamu) di context terpisah,
+// jadi masing-masing punya sesi anonim sendiri. Kamera = kamera palsu Chrome,
+// video dua arah lewat WebRTC.
 
 // Profil Pixel tanpa `defaultBrowserType` (bukan opsi context).
 const pixel: Partial<(typeof devices)["Pixel 7"]> = { ...devices["Pixel 7"] }
@@ -13,7 +14,29 @@ async function newPhone(browser: Browser, baseURL: string | undefined) {
   const page = await context.newPage()
   const errors: string[] = []
   page.on("pageerror", (e) => errors.push(e.message))
-  return { page, errors, close: () => context.close() }
+  return { page, context, errors, close: () => context.close() }
+}
+
+// Video benar-benar mengalir (bukan cuma elemen ada).
+async function expectFeed(page: Page, feed: "local" | "remote") {
+  await expect
+    .poll(
+      () =>
+        page.evaluate((f) => {
+          const v = document.querySelector<HTMLVideoElement>(`video[data-feed="${f}"]`)
+          return !!v && v.readyState >= 2 && v.videoWidth > 0
+        }, feed),
+      { timeout: 20_000, message: `video ${feed} jalan` }
+    )
+    .toBe(true)
+}
+
+async function createRoom(page: Page) {
+  await page.goto("/")
+  await page.getByRole("button", { name: /Mulai foto bareng/ }).first().click()
+  await expect(page).toHaveURL(/\/r\/[A-Z0-9]{6}$/, { timeout: 15_000 })
+  await expect(page.getByRole("heading", { name: "Kirim link ini ke dia" })).toBeVisible()
+  return page.url().split("/").pop()!
 }
 
 async function allowCamera(page: Page) {
@@ -30,16 +53,38 @@ test("dua orang: buat room, gabung, foto serentak, ulang, hasil", async ({ brows
   const guest = await newPhone(browser, baseURL)
 
   // Host: satu klik dari landing sampai layar undang.
-  await host.page.goto("/")
-  await host.page.getByRole("button", { name: /Mulai foto bareng/ }).first().click()
-  await expect(host.page).toHaveURL(/\/r\/[A-Z0-9]{6}$/, { timeout: 15_000 })
-  await expect(host.page.getByRole("heading", { name: "Kirim link ini ke dia" })).toBeVisible()
-  const code = host.page.url().split("/").pop()!
+  const code = await createRoom(host.page)
 
   // Tamu buka link → izin kamera; host otomatis pindah begitu tamu masuk.
   await guest.page.goto(`/r/${code}`)
   await allowCamera(guest.page)
   await allowCamera(host.page)
+
+  // Video dua arah tersambung.
+  for (const p of [host.page, guest.page]) {
+    await expectFeed(p, "local")
+    await expectFeed(p, "remote")
+    await expect(p.getByText("Tersambung")).toBeVisible()
+  }
+
+  // Mic default mati; dinyalakan host → suaranya sampai ke tamu.
+  await host.page.getByRole("button", { name: "Nyalakan mikrofon" }).click()
+  await expect(host.page.getByRole("button", { name: "Matikan mikrofon" })).toHaveAttribute("aria-pressed", "true")
+  await expect
+    .poll(() =>
+      guest.page.evaluate(() => {
+        const stream = document.querySelector("audio")?.srcObject as MediaStream | null
+        return stream?.getAudioTracks().length ?? 0
+      })
+    )
+    .toBe(1)
+
+  // Tamu muat ulang: izin sudah diingat, kamera nyala sendiri, video nyambung lagi.
+  await guest.context.grantPermissions(["camera"])
+  await guest.page.reload()
+  await expect(guest.page.getByText("Begini nanti hasilnya")).toBeVisible({ timeout: 15_000 })
+  await expectFeed(guest.page, "remote")
+  await expectFeed(host.page, "remote")
 
   // Nama panggilan host tampil di layar tamu.
   await host.page.getByRole("button", { name: /Ganti nama panggilan/ }).click()
@@ -65,6 +110,10 @@ test("dua orang: buat room, gabung, foto serentak, ulang, hasil", async ({ brows
   await guest.page.getByRole("button", { name: "Siap!" }).click()
   await expect(host.page.getByText(/Foto\s*1\s*dari 4/)).toBeVisible({ timeout: 10_000 })
   await expect(guest.page.getByText(/Foto\s*1\s*dari 4/)).toBeVisible({ timeout: 10_000 })
+
+  // Slot aktif berisi video kamu & dia.
+  await expectFeed(host.page, "local")
+  await expectFeed(host.page, "remote")
 
   // Hitung mundur sama di dua layar (dijadwalkan server).
   await expect(host.page.locator("span.animate-tick")).toBeVisible({ timeout: 10_000 })
@@ -102,6 +151,61 @@ test("dua orang: buat room, gabung, foto serentak, ulang, hasil", async ({ brows
   await expect(guest.page.getByRole("heading", { name: "Rara & Dimas" })).toBeVisible()
 
   expect(host.errors).toEqual([])
+  expect(guest.errors).toEqual([])
+  await host.close()
+  await guest.close()
+})
+
+test("pasangan putus: coba lagi 3×, lalu nyambung sendiri saat dia kembali", async ({ browser, baseURL }) => {
+  test.setTimeout(150_000)
+  const host = await newPhone(browser, baseURL)
+  const guest = await newPhone(browser, baseURL)
+  const code = await createRoom(host.page)
+  await guest.page.goto(`/r/${code}`)
+  await allowCamera(guest.page)
+  await allowCamera(host.page)
+  await expectFeed(host.page, "remote")
+
+  // Tamu menutup tab tanpa pamit.
+  await guest.context.grantPermissions(["camera"])
+  await guest.page.close()
+  await expect(host.page.getByText(/Terputus — mencoba lagi \(\d\/3\)|Putus, lagi disambungin/)).toBeVisible({
+    timeout: 15_000,
+  })
+  await expect(host.page.getByRole("heading", { name: "Sambungan dia putus" })).toBeVisible({ timeout: 60_000 })
+
+  // Tamu kembali lewat link yang sama → host tersambung lagi tanpa klik apa pun.
+  const back = await guest.context.newPage()
+  await back.goto(`/r/${code}`)
+  await expect(back.getByText("Begini nanti hasilnya")).toBeVisible({ timeout: 15_000 })
+  await expect(host.page.getByText("Begini nanti hasilnya")).toBeVisible({ timeout: 20_000 })
+  await expectFeed(host.page, "remote")
+  await expectFeed(back, "remote")
+
+  expect(host.errors).toEqual([])
+  await host.close()
+  await guest.close()
+})
+
+test("kamera ditolak: panduan per browser", async ({ browser, baseURL }) => {
+  const host = await newPhone(browser, baseURL)
+  const guest = await newPhone(browser, baseURL)
+  await guest.context.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = () => Promise.reject(new DOMException("Ditolak", "NotAllowedError"))
+  })
+
+  const code = await createRoom(host.page)
+  await guest.page.goto(`/r/${code}`)
+  await expect(guest.page.getByRole("heading", { name: "Nyalakan kamera" })).toBeVisible({ timeout: 15_000 })
+  await guest.page.getByRole("button", { name: "Izinkan kamera" }).click()
+  await expect(guest.page.getByRole("heading", { name: "Kamera belum diizinkan" })).toBeVisible()
+
+  await guest.page.getByRole("button", { name: "Cara mengaktifkan" }).click()
+  await expect(guest.page.getByRole("heading", { name: "Cara menyalakan kamera" })).toBeVisible()
+  await expect(guest.page.getByText("Chrome di Android")).toBeVisible()
+  await guest.page.getByRole("button", { name: "Sudah, coba lagi" }).click()
+  await expect(guest.page.getByRole("heading", { name: "Kamera belum diizinkan" })).toBeVisible()
+
   expect(guest.errors).toEqual([])
   await host.close()
   await guest.close()

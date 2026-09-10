@@ -8,6 +8,7 @@ import { getFilter } from "@/lib/templates/filters"
 import { getTemplate } from "@/lib/templates/builtin"
 import { LIVE_A, LIVE_B } from "@/lib/templates/placeholder"
 import { cn } from "@/lib/utils"
+import { media, useMedia } from "@/stores/media"
 import { useSession } from "@/stores/session"
 import { BackButton } from "../back-button"
 import { ConnectionPill } from "../connection-pill"
@@ -21,6 +22,12 @@ export function LobbyScreen() {
   const router = useRouter()
   const s = useSession()
   const [editingName, setEditingName] = useState(false)
+  const local = useMedia((m) => m.local)
+  const remote = useMedia((m) => m.remote)
+  const mic = useMedia((m) => m.mic)
+  const micBusy = useMedia((m) => m.micBusy)
+  // Galeri /dev/screens tidak punya room: tile memakai pola placeholder.
+  const real = !!s.roomId
   const partner = s.partner
   const filterCss = getFilter(s.filterId).css
   const both = partner?.ready && s.me.ready
@@ -33,8 +40,21 @@ export function LobbyScreen() {
       : "Kalian berdua harus tekan siap"
 
   // Tile kiri selalu host, kanan tamu — sama dengan urutan di strip.
-  const mine = { name: s.me.name, placeholder: "feed kamera kamu", mine: true }
-  const theirs = { name: partner?.name ?? "Dia", placeholder: "feed kamera dia", waiting: !partner?.joined }
+  const mine = {
+    name: s.me.name,
+    placeholder: "feed kamera kamu",
+    mine: true,
+    stream: local,
+    feed: "local" as const,
+    state: real && !local ? ("loading" as const) : ("live" as const),
+  }
+  const theirs = {
+    name: partner?.name ?? "Dia",
+    placeholder: "feed kamera dia",
+    stream: remote,
+    feed: "remote" as const,
+    state: !partner?.joined ? ("waiting" as const) : real && !remote ? ("loading" as const) : ("live" as const),
+  }
   const tiles = (s.role === "host" ? [mine, theirs] : [theirs, mine]).map((t, i) => ({ ...t, bg: i === 0 ? LIVE_A : LIVE_B }))
 
   return (
@@ -83,11 +103,14 @@ export function LobbyScreen() {
             <VideoTile
               key={i}
               name={t.name}
-              state={"waiting" in t && t.waiting ? "waiting" : "live"}
+              state={t.state}
+              stream={t.stream}
+              feed={t.feed}
               placeholder={t.placeholder}
               background={t.bg}
               filter={filterCss}
               onEditName={"mine" in t ? () => setEditingName(true) : undefined}
+              mic={"mine" in t && real ? { on: mic, busy: micBusy, toggle: media.toggleMic } : undefined}
             />
           ))}
         </div>

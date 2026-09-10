@@ -2,8 +2,10 @@ import { create } from "zustand"
 import { shareOrigin } from "@/lib/brand"
 import type { ErrorKind } from "@/lib/content/errors"
 import { randomPrompt } from "@/lib/content/prompts"
+import { CameraError, cameraPermission } from "@/lib/rtc/media"
+import { signalSchema } from "@/lib/rtc/peer"
 import { api, RoomError } from "@/lib/session/api"
-import { joinRoomChannel } from "@/lib/session/channel"
+import { joinRoomChannel, type RoomChannel } from "@/lib/session/channel"
 import { placeholderFrame } from "@/lib/session/demo"
 import {
   deriveView,
@@ -18,10 +20,12 @@ import { measureOffset } from "@/lib/sync/clock"
 import { getFilter } from "@/lib/templates/filters"
 import { DEFAULT_TEMPLATE_ID, getTemplate } from "@/lib/templates/builtin"
 import { notify, warn } from "@/lib/toast"
+import { media, useMedia } from "@/stores/media"
 
 // Store sesi. Sumber kebenaran = server (RPC Supabase + broadcast realtime
 // `room_state`); store menurunkan layar dari snapshot + keadaan lokal
-// perangkat (izin kamera, layar undang). Aksi dev* hanya untuk /dev/screens.
+// perangkat (izin kamera, sambungan video, layar undang). Kamera & WebRTC ada
+// di stores/media.ts. Aksi dev* hanya untuk /dev/screens.
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 const EMPTY_FRAMES = [null, null, null, null]
@@ -41,6 +45,8 @@ type Local = {
   camera: Camera
   showInvite: boolean
   partnerOnline: boolean
+  // Izin kamera sudah pernah diberikan → kamera dinyalakan tanpa menunggu klik.
+  autoCamera: boolean
   snapshot: RoomSnapshot | null
 }
 
@@ -69,6 +75,7 @@ function initialState(): SessionState & Local {
     camera: "unknown",
     showInvite: false,
     partnerOnline: true,
+    autoCamera: false,
     snapshot: null,
   }
 }
@@ -80,6 +87,8 @@ let ticker: ReturnType<typeof setInterval> | null = null
 let reportedShot = ""
 let partnerTimer: ReturnType<typeof setTimeout> | null = null
 let connectingCode = ""
+// Naik tiap masuk/keluar room; enterRoom lama yang masih jalan berhenti sendiri.
+let generation = 0
 
 function copyText(text: string) {
   navigator.clipboard?.writeText(text).catch(() => {})
@@ -89,7 +98,7 @@ function errorKindOf(e: unknown): ErrorKind {
   return e instanceof RoomError && e.kind ? e.kind : "jaringan"
 }
 
-type Internal = { resync: () => Promise<void> }
+type Internal = { resync: () => Promise<void>; refresh: () => void }
 type Store = SessionState & Local & SessionActions & DevActions & Internal
 
 export const useSession = create<Store>()((set, get) => {
@@ -102,6 +111,7 @@ export const useSession = create<Store>()((set, get) => {
       camera: s.camera,
       showInvite: s.showInvite,
       partnerOnline: s.partnerOnline,
+      link: useMedia.getState().link,
     })
     const leavingReview = s.screen === "review" && view.screen !== "review"
     set({
@@ -118,8 +128,11 @@ export const useSession = create<Store>()((set, get) => {
       retakeQueue: view.retakeQueue,
       result: view.result,
       conn: view.conn,
+      reconnectAttempt: view.reconnectAttempt,
       selected: leavingReview ? [] : s.selected,
     })
+    // Sesi selesai: kamera & sambungan video tidak dibutuhkan lagi.
+    if (view.screen === "hasil" && useMedia.getState().local) media.stop()
     if (event?.by && event.by !== s.participantId) {
       const msg = partnerEventMessage(event, view.partner?.name ?? "Dia", (id) => getTemplate(id).name)
       if (msg) notify(msg)
@@ -192,6 +205,7 @@ export const useSession = create<Store>()((set, get) => {
   const disconnect = () => {
     unsubscribe?.()
     unsubscribe = null
+    media.disconnect()
     if (ticker) clearInterval(ticker)
     ticker = null
     if (partnerTimer) clearTimeout(partnerTimer)
@@ -234,35 +248,59 @@ export const useSession = create<Store>()((set, get) => {
     ...initialState(),
 
     resync,
+    refresh: () => recompute(),
 
     createRoom: async () => {
       const { code } = await api.createRoom()
       return code
     },
 
-    // Dipanggil halaman /r/[code]: join (atau masuk ulang) lalu dengarkan channel.
+    // Dipanggil halaman /r/[code]: join (atau masuk ulang), dengarkan channel,
+    // lalu siapkan sambungan video ke pasangan.
     enterRoom: async (code) => {
       const s = get()
       if ((s.code === code && s.roomId && unsubscribe) || connectingCode === code) return
+      const my = ++generation
       connectingCode = code
       disconnect()
       set({ ...initialState(), code, sound: s.sound })
       try {
         const joined = await api.joinRoom(code)
+        if (my !== generation) return
         set({ roomId: joined.room_id, participantId: joined.participant_id, role: joined.role })
-        applySnapshot(await api.getRoom(joined.room_id), null)
-        unsubscribe = await joinRoomChannel(joined.room_id, joined.participant_id, {
+        const [snap, permission] = await Promise.all([api.getRoom(joined.room_id), cameraPermission()])
+        if (my !== generation) return
+        set({ autoCamera: permission === "granted" })
+        applySnapshot(snap, null)
+
+        let room: RoomChannel | null = null
+        media.connect({
+          selfId: joined.participant_id,
+          polite: joined.role === "guest",
+          send: (signal) => room?.send("signal", signal),
+        })
+        room = await joinRoomChannel(joined.room_id, joined.participant_id, {
           onState: applySnapshot,
           onPresence,
           onResync: resync,
+          onSignal: (payload) => {
+            const signal = signalSchema.safeParse(payload)
+            if (signal.success) media.signal(signal.data)
+          },
+          onSubscribed: () => media.announce(),
         })
+        if (my !== generation) {
+          room.leave()
+          return
+        }
+        unsubscribe = room.leave
         measureOffset(api.serverNow).then((o) => {
           clockOffset = o
         })
       } catch (e) {
-        set({ screen: "error", errorKind: errorKindOf(e) })
+        if (my === generation) set({ screen: "error", errorKind: errorKindOf(e) })
       } finally {
-        connectingCode = ""
+        if (my === generation) connectingCode = ""
       }
     },
 
@@ -271,7 +309,10 @@ export const useSession = create<Store>()((set, get) => {
     leave: () => {
       const roomId = get().roomId
       if (roomId) api.leaveRoom(roomId).catch(() => {})
+      generation++
+      connectingCode = ""
       disconnect()
+      media.stop()
       set(initialState())
     },
 
@@ -290,11 +331,31 @@ export const useSession = create<Store>()((set, get) => {
       guard(() => api.setNickname(room(), name))
     },
 
-    // M3: getUserMedia sungguhan.
-    allowCamera: () => {
-      set({ camera: "granted" })
-      recompute()
-      notify("Kamera nyala")
+    // getUserMedia dipanggil dari klik (quirk iOS), atau otomatis kalau izin
+    // sudah pernah diberikan.
+    allowCamera: async () => {
+      if (!get().roomId) {
+        set({ screen: "lobby" }) // galeri dev: tanpa kamera sungguhan
+        return
+      }
+      try {
+        await media.openCamera()
+        set({ camera: "granted" })
+        recompute()
+      } catch (e) {
+        const reason = e instanceof CameraError ? e.reason : "unknown"
+        const soft = {
+          busy: "Kamera lagi dipakai aplikasi lain. Tutup dulu, lalu coba lagi.",
+          missing: "Kamera nggak ketemu di perangkat ini",
+          insecure: "Kamera cuma bisa nyala lewat https",
+        } as Partial<Record<typeof reason, string>>
+        if (soft[reason]) {
+          warn(soft[reason])
+          return
+        }
+        set({ camera: "denied", autoCamera: false })
+        recompute()
+      }
     },
     denyCamera: () => {
       set({ camera: "denied" })
@@ -428,10 +489,13 @@ export const useSession = create<Store>()((set, get) => {
     errorAction: () => {
       const s = get()
       if (s.errorKind === "camera") {
-        set({ camera: "unknown", screen: s.snapshot ? s.screen : "izin" })
-        recompute()
+        // Setelah ikut panduan: minta kamera lagi.
+        if (!s.snapshot) return set({ screen: "izin" })
+        set({ camera: "unknown" })
+        get().allowCamera()
       } else if (s.errorKind === "putus") {
-        set({ partnerOnline: true, conn: "ok", screen: s.snapshot ? s.screen : "lobby" })
+        if (!s.snapshot) return set({ conn: "ok", reconnectAttempt: 0, screen: "lobby" })
+        media.reconnect()
         resync()
       } else if (s.errorKind === "jaringan" && s.code) {
         const code = s.code
@@ -440,9 +504,13 @@ export const useSession = create<Store>()((set, get) => {
       }
     },
 
-    // "Foto lagi": lepas koneksi tanpa menutup room (pasangan masih lihat hasil).
+    // "Foto lagi" / pindah halaman: lepas koneksi & kamera tanpa menutup room
+    // (pasangan masih bisa lihat hasil atau kembali lagi).
     reset: () => {
+      generation++
+      connectingCode = ""
       disconnect()
+      media.stop()
       set(initialState())
     },
 
@@ -491,6 +559,16 @@ export const useSession = create<Store>()((set, get) => {
       notify("Dimas masuk")
     },
   }
+})
+
+// Sambungan video berubah (tersambung, lemot, putus) → pill & layar ikut.
+// Kamera mati sendiri (izin dicabut, dipakai aplikasi lain) → minta izin lagi.
+useMedia.subscribe((m, prev) => {
+  const session = useSession.getState()
+  if (prev.local && !m.local && session.camera === "granted" && session.screen !== "hasil") {
+    useSession.setState({ camera: "unknown", autoCamera: false })
+  }
+  if (m.link !== prev.link || m.local !== prev.local) session.refresh()
 })
 
 // Sinkron ulang saat tab kembali terlihat (HP sempat terkunci, dsb.).

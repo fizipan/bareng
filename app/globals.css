@@ -279,6 +279,12 @@
   }
 }
 
+/* Layar capture tidak bisa di-scroll dan tombol shutter ada di bawah: toast
+   naik ke atas area shutter supaya tidak menghalangi ketukan. */
+html:has(main[data-screen="capture"]) [data-sonner-toaster][data-y-position="bottom"] {
+  bottom: calc(168px + env(safe-area-inset-bottom));
+}
+
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;
