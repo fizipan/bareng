@@ -17,10 +17,7 @@ export default function manifest(): MetadataRoute.Manifest {
     display_override: ["standalone", "minimal-ui"],
     orientation: "portrait",
     background_color: "#F4F3EF",
-    // Gelap: di mode gelap Android, aplikasi terpasang memakai warna ini untuk
-    // status bar (meta theme-color halaman diabaikan Chrome). Di mode terang
-    // meta per layar tetap berlaku — Kabin gelap, Kertas terang.
-    theme_color: "#16141D",
+    theme_color: "#F4F3EF",
     categories: ["photo", "entertainment", "social", "lifestyle"],
     prefer_related_applications: false,
     icons: [

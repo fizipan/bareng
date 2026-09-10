@@ -12,8 +12,7 @@ test("manifest lengkap & semua aset bisa diakses", async ({ page, request }) => 
   const m = await res.json()
   expect(m.name).toContain("Bareng")
   expect(m.display).toBe("standalone")
-  // Status bar aplikasi terpasang (mode gelap Android) memakai warna gelap.
-  expect(m.theme_color).toBe("#16141D")
+  expect(m.theme_color).toBe("#F4F3EF")
   expect(m.icons.some((i: { sizes: string }) => i.sizes === "512x512")).toBe(true)
   expect(m.icons.some((i: { purpose: string }) => i.purpose === "maskable")).toBe(true)
   expect(m.screenshots.filter((s: { form_factor: string }) => s.form_factor === "narrow").length).toBeGreaterThan(0)

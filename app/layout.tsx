@@ -41,8 +41,7 @@ export const metadata: Metadata = {
   },
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
   // iOS: buka tanpa bilah Safari saat dipasang ke layar utama, dengan splash sendiri.
-  // Status bar gelap: iOS tidak mengikuti theme-color per layar di mode standalone.
-  appleWebApp: { capable: true, title: BRAND, statusBarStyle: "black", startupImage: APPLE_STARTUP_IMAGES },
+  appleWebApp: { capable: true, title: BRAND, statusBarStyle: "default", startupImage: APPLE_STARTUP_IMAGES },
   formatDetection: { telephone: false, email: false, address: false },
 }
 
