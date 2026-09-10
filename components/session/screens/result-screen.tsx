@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { CopyIcon, DownloadIcon, FileImageIcon, PlusIcon, Share2Icon, Trash2Icon } from "lucide-react"
 import { ActionTile, actionTileFrame } from "@/components/common/action-tile"
+import { InstallCard } from "@/components/pwa/install-button"
 import { FrameFill } from "@/components/strip/frame-fill"
 import { Strip } from "@/components/strip/strip"
 import { Button } from "@/components/ui/button"
@@ -91,6 +92,8 @@ export function ResultScreen() {
           Sesi premium aktif. Tanpa watermark, kualitas tinggi, tersimpan selamanya.
         </div>
       )}
+
+      <InstallCard />
 
       <section className="flex w-full flex-col gap-2.5 text-left">
         <div className="flex items-baseline justify-between gap-3">

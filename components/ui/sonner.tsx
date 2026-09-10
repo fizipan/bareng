@@ -30,8 +30,13 @@ const Toaster = ({ ...props }: ToasterProps) => {
         classNames: {
           toast:
             "inset-x-0 mx-auto flex w-max max-w-full font-sans items-center gap-2.5 rounded-md bg-toast py-[11px] pr-4 pl-3 text-small text-kertas shadow-toast",
-          icon: "flex shrink-0 items-center",
+          icon: "flex shrink-0 items-center self-start pt-px",
+          content: "flex min-w-0 flex-col gap-0.5",
           title: "font-normal",
+          description: "text-caption text-kertas/70",
+          actionButton:
+            "ml-1 shrink-0 rounded-sm bg-shutter px-3 py-1.5 text-caption font-semibold text-kertas hover:bg-shutter-hover",
+          cancelButton: "shrink-0 rounded-sm px-2 py-1.5 text-caption text-kertas/70 hover:text-kertas",
         },
       }}
       {...props}

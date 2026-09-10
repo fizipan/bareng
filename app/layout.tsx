@@ -1,7 +1,9 @@
 import type { Metadata } from "next"
 import { Bricolage_Grotesque, Inter } from "next/font/google"
+import { PwaProvider } from "@/components/pwa/pwa-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { BRAND, SITE_URL } from "@/lib/brand"
+import { APPLE_STARTUP_IMAGES } from "@/lib/pwa"
 import "./globals.css"
 
 const inter = Inter({
@@ -18,14 +20,29 @@ const bricolage = Bricolage_Grotesque({
   display: "swap",
 })
 
+const TITLE = `${BRAND} — photobooth online berdua`
+const DESCRIPTION = "Photobooth online untuk kamu dan dia. Buka link, hitung mundur bareng, jadi satu photostrip. Gratis, tanpa akun."
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: {
-    default: `${BRAND} — photobooth online berdua`,
-    template: `%s · ${BRAND}`,
-  },
-  description: "Photobooth online untuk kamu dan dia. Buka link, hitung mundur bareng, jadi.",
+  title: { default: TITLE, template: `%s · ${BRAND}` },
+  description: DESCRIPTION,
   applicationName: BRAND,
+  keywords: ["photobooth online", "foto bareng online", "photobooth LDR", "photostrip", "foto jarak jauh", "photobooth berdua"],
+  authors: [{ name: BRAND }],
+  creator: BRAND,
+  category: "photography",
+  openGraph: {
+    type: "website",
+    locale: "id_ID",
+    siteName: BRAND,
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
+  // iOS: buka tanpa bilah Safari saat dipasang ke layar utama, dengan splash sendiri.
+  appleWebApp: { capable: true, title: BRAND, statusBarStyle: "default", startupImage: APPLE_STARTUP_IMAGES },
+  formatDetection: { telephone: false, email: false, address: false },
 }
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -34,6 +51,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body>
         {children}
         <Toaster />
+        <PwaProvider />
       </body>
     </html>
   )

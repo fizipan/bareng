@@ -9,7 +9,9 @@
     "lint": "eslint",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "pwa:icons": "python3 scripts/pwa-icons.py",
+    "pwa:screenshots": "node scripts/pwa-screenshots.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
