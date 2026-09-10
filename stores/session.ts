@@ -1,6 +1,6 @@
 import { create } from "zustand"
 import { randomPrompt } from "@/lib/content/prompts"
-import { SITE_URL } from "@/lib/brand"
+import { shareOrigin } from "@/lib/brand"
 import { getFilter } from "@/lib/templates/filters"
 import { DEFAULT_TEMPLATE_ID, getTemplate } from "@/lib/templates/builtin"
 import { notify } from "@/lib/toast"
@@ -22,8 +22,8 @@ export function makeRoomCode() {
   return Array.from(bytes, (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join("")
 }
 
-export const roomUrl = (code: string) => `${SITE_URL}/r/${code}`
-export const resultUrl = (slug: string) => `${SITE_URL}/p/${slug}`
+export const roomUrl = (code: string) => `${shareOrigin()}/r/${code}`
+export const resultUrl = (slug: string) => `${shareOrigin()}/p/${slug}`
 
 function initialState(): SessionState {
   return {
