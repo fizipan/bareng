@@ -58,6 +58,9 @@ export const api = {
   leaveRoom: (roomId: string) => call<void>("leave_room", { p_room: roomId }),
   mockUpgrade: (roomId: string) => call<void>("mock_upgrade", { p_room: roomId }),
   deleteResult: (slug: string) => call<void>("delete_result", { p_slug: slug }),
+  setResultImage: (slug: string, path: string) => call<void>("set_result_image", { p_slug: slug, p_path: path }),
+  // Buang file hasil yang baru dihapus sekarang juga (bukan menunggu jadwal).
+  purgeResult: (slug: string) => supabase().functions.invoke("cleanup", { body: { slug } }),
   reportResult: (slug: string) => call<void>("report_result", { p_slug: slug }),
   serverNow: async () => {
     const { data, error } = await supabase().rpc("server_now")

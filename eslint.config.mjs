@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Salinan prototipe lokal untuk referensi visual.
     "public/_proto/**",
+    // Edge Function Supabase (Deno), di luar build Next.
+    "supabase/functions/**",
   ]),
 ]);
 

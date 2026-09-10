@@ -1,7 +1,7 @@
 import { z } from "zod"
 import type { ErrorKind } from "@/lib/content/errors"
 import { placeholderFrame } from "./demo"
-import type { Conn, Frame, FrameSource, Person, Role, Screen, ShotPhase, Tier } from "./types"
+import type { Conn, Frame, FrameSource, Person, Role, Screen, SessionResult, ShotPhase, Tier } from "./types"
 
 // Snapshot room dari server (private.room_state). Divalidasi supaya payload
 // realtime yang aneh tidak merusak UI.
@@ -36,7 +36,15 @@ export const roomSnapshotSchema = z.object({
       v: z.number().int(),
     })
   ),
-  result: z.object({ slug: z.string(), created_at: z.number() }).nullable(),
+  result: z
+    .object({
+      slug: z.string(),
+      created_at: z.number(),
+      image_path: z.string().nullable().optional(),
+      names: z.string().nullable().optional(),
+      expires_at: z.number().nullable().optional(),
+    })
+    .nullable(),
 })
 
 export type RoomSnapshot = z.infer<typeof roomSnapshotSchema>
@@ -80,7 +88,7 @@ export type RoomView = {
   frames: (Frame | null)[]
   framesReady: boolean
   retakeQueue: number[]
-  result: { slug: string; createdAt: string } | null
+  result: SessionResult | null
   conn: Conn
   reconnectAttempt: number
 }
@@ -173,7 +181,15 @@ export function deriveView(
     frames,
     framesReady: snap.frames.filter((f) => f.status === "uploaded").length >= 8,
     retakeQueue: snap.retake_queue,
-    result: snap.result ? { slug: snap.result.slug, createdAt: new Date(snap.result.created_at).toISOString() } : null,
+    result: snap.result
+      ? {
+          slug: snap.result.slug,
+          createdAt: new Date(snap.result.created_at).toISOString(),
+          imagePath: snap.result.image_path ?? null,
+          names: snap.result.names ?? null,
+          expiresAt: snap.result.expires_at ? new Date(snap.result.expires_at).toISOString() : null,
+        }
+      : null,
     conn,
     reconnectAttempt: attempt,
   }
@@ -200,6 +216,8 @@ export function partnerEventMessage(event: RoomEvent, partnerName: string, templ
       return "Sesi jadi premium"
     case "left":
       return `${partnerName} keluar dari room`
+    case "deleted":
+      return `${partnerName} menghapus photostrip ini`
     default:
       return null
   }

@@ -1,5 +1,5 @@
 import { create } from "zustand"
-import { shareOrigin } from "@/lib/brand"
+import { shareOrigin, SITE_HOST } from "@/lib/brand"
 import type { ErrorKind } from "@/lib/content/errors"
 import { randomPrompt } from "@/lib/content/prompts"
 import { CameraError, cameraPermission } from "@/lib/rtc/media"
@@ -7,6 +7,7 @@ import { signalSchema } from "@/lib/rtc/peer"
 import { api, RoomError } from "@/lib/session/api"
 import { joinRoomChannel, type RoomChannel } from "@/lib/session/channel"
 import { framePath, signFrames, uploadFrame, withRetry } from "@/lib/session/frames"
+import { cardPathOf, loadBitmap, resultKey, resultPath, uploadResult } from "@/lib/session/results"
 import { placeholderFrame } from "@/lib/session/demo"
 import {
   deriveView,
@@ -21,9 +22,13 @@ import type { DevActions, Screen, SessionActions, SessionState } from "@/lib/ses
 import { measureOffset } from "@/lib/sync/clock"
 import { getFilter } from "@/lib/templates/filters"
 import { DEFAULT_TEMPLATE_ID, getTemplate } from "@/lib/templates/builtin"
+import { formatLongDate, formatStripDate } from "@/lib/format"
 import { playShutter, playTick, unlockSounds } from "@/lib/sounds"
+import { canvasToJpeg, FREE_WIDTH, PREMIUM_WIDTH, renderStrip } from "@/lib/templates/render"
+import { renderShareCard } from "@/lib/templates/share-card"
 import { notify, warn } from "@/lib/toast"
 import { media, useMedia } from "@/stores/media"
+import { usePwa } from "@/stores/pwa"
 
 // Store sesi. Sumber kebenaran = server (RPC Supabase + broadcast realtime
 // `room_state`); store menurunkan layar dari snapshot + keadaan lokal
@@ -124,6 +129,36 @@ function frameImages() {
   return { local, remote: signed }
 }
 
+// ── Photostrip jadi ─────────────────────────────────────────────────────────
+// Dirender di HP (canvas) dari foto asli, sekali per pengaturan. Host langsung
+// mengunggah; tamu menyusul kalau 4 dtk belum ada (host keluar / sinyal jelek).
+type Composite = { strip: Blob; card: Blob }
+const composites = new Map<string, Promise<Composite>>()
+const publishing = new Set<string>()
+let publishTimer: ReturnType<typeof setTimeout> | null = null
+let publishPath = ""
+let publishJob: Promise<void> | null = null
+
+function clearComposites() {
+  if (publishTimer) clearTimeout(publishTimer)
+  publishTimer = null
+  publishPath = ""
+  composites.clear()
+  publishing.clear()
+  publishJob = null
+}
+
+function saveBlob(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = name
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 10_000)
+}
+
 function clearShots() {
   if (captureTimer) clearTimeout(captureTimer)
   captureTimer = null
@@ -144,7 +179,7 @@ function errorKindOf(e: unknown): ErrorKind {
   return e instanceof RoomError && e.kind ? e.kind : "jaringan"
 }
 
-type Internal = { resync: () => Promise<void>; refresh: () => void }
+type Internal = { resync: () => Promise<void>; refresh: () => void; settle: () => Promise<void> }
 type Store = SessionState & Local & SessionActions & DevActions & Internal
 
 export const useSession = create<Store>()((set, get) => {
@@ -181,6 +216,7 @@ export const useSession = create<Store>()((set, get) => {
     })
     // Sesi selesai: kamera & sambungan video tidak dibutuhkan lagi.
     if (view.screen === "hasil" && useMedia.getState().local) media.stop()
+    if (view.screen === "hasil") publishComposite()
     if (event?.by && event.by !== s.participantId) {
       const msg = partnerEventMessage(event, view.partner?.name ?? "Dia", (id) => getTemplate(id).name)
       if (msg) notify(msg)
@@ -265,6 +301,115 @@ export const useSession = create<Store>()((set, get) => {
     const { roomId, participantId } = get()
     if (!roomId || !participantId) return
     for (const shot of shots.values()) void deliver(roomId, participantId, shot)
+  }
+
+  const renderKeyOf = (s: SessionState) => resultKey(s.templateId, s.filterId, s.tier === "premium")
+
+  // Photostrip + kartu pratinjau link dari 8 foto asli (sekali per pengaturan).
+  const buildComposite = (key: string): Promise<Composite> => {
+    const s = get()
+    const snap = s.snapshot
+    const result = s.result
+    const me = s.participantId
+    if (!snap || !result || !me) return Promise.reject(new Error("no_result"))
+    const cacheKey = `${result.slug}:${key}`
+    const cached = composites.get(cacheKey)
+    if (cached) return cached
+
+    const job = (async () => {
+      const host = snap.participants.find((p) => p.role === "host")
+      const guest = snap.participants.find((p) => p.role === "guest")
+      type Row = RoomSnapshot["frames"][number]
+      const rowOf = (idx: number, id?: string) => snap.frames.find((f) => f.idx === idx && f.participant_id === id)
+      const rows = [0, 1, 2, 3].map((idx) => [rowOf(idx, host?.id), rowOf(idx, guest?.id)] as const)
+      const localUrl = (row: Row) => (row.participant_id === me ? shots.get(`${row.idx}:${row.v}`)?.url : undefined)
+      // URL bertanda tangan baru: yang lama bisa sudah kedaluwarsa (1 jam).
+      const toSign = rows.flat().flatMap((row) => (row?.path && !localUrl(row) ? [row.path] : []))
+      const fresh = toSign.length ? await signFrames(toSign) : {}
+      const urlOf = (row: Row | undefined) => {
+        const url = row && (localUrl(row) ?? (row.path ? fresh[row.path] : undefined))
+        if (!url) throw new Error("frame_missing")
+        return url
+      }
+      const images = await Promise.all(
+        rows.map(async ([a, b]) => ({ a: await loadBitmap(urlOf(a)), b: await loadBitmap(urlOf(b)) }))
+      )
+      try {
+        const premium = s.tier === "premium"
+        const createdAt = new Date(result.createdAt)
+        const canvas = await renderStrip({
+          template: getTemplate(s.templateId),
+          images,
+          filterCss: getFilter(s.filterId).css,
+          tokens: { date: formatStripDate(createdAt), host: SITE_HOST },
+          watermark: !premium,
+          width: premium ? PREMIUM_WIDTH : FREE_WIDTH,
+        })
+        const strip = await canvasToJpeg(canvas, 0.92)
+        const cardCanvas = await renderShareCard({
+          strip: canvas,
+          title: result.names ?? "Photostrip kami",
+          subtitle: `Foto bareng · ${formatLongDate(createdAt)}`,
+          cta: `Bikin punyamu di ${SITE_HOST}`,
+        })
+        return { strip, card: await canvasToJpeg(cardCanvas, 0.85) }
+      } finally {
+        images.forEach(({ a, b }) => {
+          a.close()
+          b.close()
+        })
+      }
+    })()
+    composites.set(cacheKey, job)
+    job.catch(() => composites.delete(cacheKey))
+    return job
+  }
+
+  // Render → unggah kartu & photostrip → catat di server. Satu jalan per path.
+  const runPublish = (path: string, key: string, slug: string): Promise<void> => {
+    if (publishing.has(path) && publishJob) return publishJob
+    publishing.add(path)
+    const job = (async () => {
+      let failed = false
+      try {
+        const { strip, card } = await buildComposite(key)
+        await withRetry(() => uploadResult(cardPathOf(path), card))
+        await withRetry(() => uploadResult(path, strip))
+        await withRetry(() => api.setResultImage(slug, path), 2)
+      } catch {
+        failed = true // pengaturan berubah (render lama) atau jaringan
+      } finally {
+        publishing.delete(path)
+      }
+      if (failed) setTimeout(publishComposite, 5000)
+    })()
+    publishJob = job
+    return job
+  }
+
+  // Pastikan file di server = pengaturan hasil saat ini (template, gratis/premium).
+  const publishComposite = () => {
+    const s = get()
+    const result = s.result
+    const roomId = s.roomId
+    if (s.screen !== "hasil" || !result || !roomId) return
+    const key = renderKeyOf(s)
+    const path = resultPath(roomId, result.slug, key)
+    void buildComposite(key).catch(() => {}) // siap untuk Unduh
+    if (result.imagePath === path || publishing.has(path) || publishPath === path) return
+    if (publishTimer) clearTimeout(publishTimer)
+    publishPath = path
+    publishTimer = setTimeout(
+      () => {
+        publishTimer = null
+        publishPath = ""
+        const cur = get()
+        if (!cur.result || cur.result.imagePath === path) return
+        if (cur.result.slug !== result.slug || renderKeyOf(cur) !== key) return
+        void runPublish(path, key, result.slug)
+      },
+      s.role === "host" ? 0 : 4000
+    )
   }
 
   // Ambil foto dari kamera lokal tepat di capture_at (jadwal server).
@@ -375,6 +520,7 @@ export const useSession = create<Store>()((set, get) => {
     ticker = null
     if (partnerTimer) clearTimeout(partnerTimer)
     clearShots()
+    clearComposites()
   }
 
   const guard = async (fn: () => Promise<unknown>, fallback = "Gagal, coba lagi") => {
@@ -414,6 +560,19 @@ export const useSession = create<Store>()((set, get) => {
 
     resync,
     refresh: () => recompute(),
+    // Tunggu photostrip selesai terunggah sebelum meninggalkan layar hasil
+    // (maks. 8 dtk), supaya link yang dibagikan tidak kosong.
+    settle: async () => {
+      const s = get()
+      if (s.screen !== "hasil" || !s.result || !s.roomId) return
+      const key = renderKeyOf(s)
+      const path = resultPath(s.roomId, s.result.slug, key)
+      if (s.result.imagePath === path) return
+      if (publishTimer) clearTimeout(publishTimer)
+      publishTimer = null
+      publishPath = ""
+      await Promise.race([runPublish(path, key, s.result.slug), new Promise((r) => setTimeout(r, 8000))])
+    },
 
     createRoom: async () => {
       const { code } = await api.createRoom()
@@ -602,7 +761,29 @@ export const useSession = create<Store>()((set, get) => {
       notify("Photostrip kalian jadi")
       if (get().roomId) guard(() => api.finishSession(room()))
     },
-    download: () => notify(get().tier === "premium" ? "Photostrip tersimpan, kualitas tinggi" : "Tersimpan dengan watermark"),
+    // iPhone: lembar bagikan (Simpan Gambar ke Foto). Lainnya: unduh file.
+    download: async () => {
+      const s = get()
+      const saved = s.tier === "premium" ? "Photostrip tersimpan, kualitas tinggi" : "Photostrip tersimpan"
+      if (!s.roomId || !s.result) {
+        notify(saved)
+        return
+      }
+      try {
+        const { strip } = await buildComposite(renderKeyOf(s))
+        const name = `bareng-${s.result.slug}.jpg`
+        const file = new File([strip], name, { type: "image/jpeg" })
+        if (usePwa.getState().ios && navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ files: [file], title: "Photostrip kami" })
+        } else {
+          saveBlob(strip, name)
+        }
+        notify(saved)
+      } catch (e) {
+        if ((e as DOMException)?.name === "AbortError") return
+        warn("Belum bisa menyimpan, coba lagi")
+      }
+    },
     share: () => {
       const slug = get().result?.slug
       if (!slug) return
@@ -622,7 +803,11 @@ export const useSession = create<Store>()((set, get) => {
     },
     deleteResult: async () => {
       const slug = get().result?.slug
-      if (slug && get().roomId) await api.deleteResult(slug)
+      if (slug && get().roomId) {
+        await api.deleteResult(slug)
+        // File di Storage dibuang sekarang juga (jadwal tiap jam sebagai cadangan).
+        void api.purgeResult(slug).catch(() => {})
+      }
       notify("Foto dihapus")
     },
 
@@ -710,7 +895,9 @@ export const useSession = create<Store>()((set, get) => {
         return
       }
       if (screen === "review" || screen === "hasil") base.frames = [0, 1, 2, 3].map(placeholderFrame)
-      if (screen === "hasil") base.result = { slug: "contoh", createdAt: new Date().toISOString() }
+      if (screen === "hasil") {
+        base.result = { slug: "contoh", createdAt: new Date().toISOString(), imagePath: null, names: null, expiresAt: null }
+      }
       set(base)
     },
     devSetTier: (tier) => {

@@ -19,6 +19,15 @@ export type Frame = { a: FrameSource; b: FrameSource }
 
 export type Person = { name: string; ready: boolean }
 
+// Hasil sesi: link publik + file photostrip jadi (null sampai terunggah).
+export type SessionResult = {
+  slug: string
+  createdAt: string
+  imagePath: string | null
+  names: string | null
+  expiresAt: string | null
+}
+
 export type SessionState = {
   code: string
   role: Role
@@ -39,7 +48,7 @@ export type SessionState = {
   retakeQueue: number[]
   selected: number[]
   paywall: { open: boolean; pendingTemplateId: string | null; paying: boolean }
-  result: { slug: string; createdAt: string } | null
+  result: SessionResult | null
 }
 
 export type SessionActions = {
@@ -63,7 +72,7 @@ export type SessionActions = {
   retakeSelected: () => void
   retakeAll: () => void
   makeStrip: () => void
-  download: () => void
+  download: () => Promise<void>
   share: () => void
   copyResultLink: () => void
   deleteResult: () => Promise<void>

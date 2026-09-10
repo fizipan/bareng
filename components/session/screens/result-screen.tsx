@@ -19,10 +19,11 @@ import {
 } from "@/components/ui/dialog"
 import { SITE_HOST } from "@/lib/brand"
 import { PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
-import { formatStripDate } from "@/lib/format"
+import { formatLongDate, formatStripDate } from "@/lib/format"
 import { getFilter } from "@/lib/templates/filters"
 import { getTemplate } from "@/lib/templates/builtin"
 import { warn } from "@/lib/toast"
+import { cn } from "@/lib/utils"
 import { useSession } from "@/stores/session"
 import { TemplatePicker } from "../template-picker"
 
@@ -32,9 +33,34 @@ export function ResultScreen() {
   const router = useRouter()
   const s = useSession()
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [leaving, setLeaving] = useState(false)
   const template = getTemplate(s.templateId)
   const isFree = s.tier !== "premium"
   const date = s.result ? new Date(s.result.createdAt) : new Date()
+  const keepUntil = s.result?.expiresAt ? formatLongDate(new Date(s.result.expiresAt)) : null
+
+  // Tunggu photostrip terunggah dulu supaya link yang sudah dibagikan tidak kosong.
+  const restart = async () => {
+    setLeaving(true)
+    await s.settle()
+    s.reset()
+    router.push("/")
+  }
+
+  // Pasangan menghapus photostrip-nya.
+  if (s.roomId && !s.result) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-5 py-9 text-center">
+        <h1 className="font-display text-display-md font-semibold">Photostrip ini sudah dihapus</h1>
+        <p className="max-w-[34ch] text-body text-muted-foreground">Link-nya sudah mati untuk kalian berdua.</p>
+        <Button onClick={restart}>
+          <PlusIcon data-icon="inline-start" />
+          Foto lagi
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col items-center gap-[22px] px-5 pt-3 pb-9 text-center">
@@ -65,9 +91,16 @@ export function ResultScreen() {
       </div>
 
       <div className="flex w-full flex-col gap-2.5">
-        <Button onClick={s.download}>
-          <DownloadIcon data-icon="inline-start" />
-          Unduh photostrip
+        <Button
+          disabled={saving}
+          onClick={async () => {
+            setSaving(true)
+            await s.download()
+            setSaving(false)
+          }}
+        >
+          <DownloadIcon data-icon="inline-start" className={cn(saving && "animate-blink")} />
+          {saving ? "Menyiapkan file…" : "Unduh photostrip"}
         </Button>
         <div className="flex gap-2.5">
           <Button variant="secondary" className="flex-1 text-label" onClick={s.share}>
@@ -84,6 +117,9 @@ export function ResultScreen() {
       {isFree ? (
         <div className="flex w-full flex-col gap-2.5 rounded-md bg-card p-4 text-left">
           <span className="text-label font-semibold">Simpan tanpa watermark, HD, plus semua template.</span>
+          {keepUntil && (
+            <span className="text-caption text-muted-foreground">Versi gratis tersimpan sampai {keepUntil}.</span>
+          )}
           <Button variant="link" size="inline" className="self-start text-label text-shutter" onClick={s.openPaywall}>
             Lihat premium — {PREMIUM_PRICE_LABEL}
           </Button>
@@ -113,15 +149,12 @@ export function ResultScreen() {
             />
           </Link>
         )}
-        <button
-          type="button"
-          className={actionTileFrame}
-          onClick={() => {
-            s.reset()
-            router.push("/")
-          }}
-        >
-          <ActionTile icon={<PlusIcon />} title="Foto lagi" description="Mulai sesi baru dari awal" />
+        <button type="button" className={actionTileFrame} onClick={restart} disabled={leaving}>
+          <ActionTile
+            icon={<PlusIcon />}
+            title="Foto lagi"
+            description={leaving ? "Menyimpan photostrip dulu…" : "Mulai sesi baru dari awal"}
+          />
         </button>
         <InstallTile autoOpen />
         <Button variant="ghost" size="sm" className="self-center text-muted-foreground" onClick={() => setConfirmDelete(true)}>

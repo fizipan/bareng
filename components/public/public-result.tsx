@@ -16,8 +16,13 @@ export type PublicResultData = {
   filter?: string
   names: string | null
   createdAt: Date
-  frames: Frame[]
+  // File photostrip jadi; null selama HP masih mengunggahnya.
+  imageUrl?: string | null
+  // Pola contoh untuk galeri dev.
+  frames?: Frame[]
 }
+
+const PENDING: Frame = { a: { kind: "pending" }, b: { kind: "pending" } }
 
 // Halaman publik share (prototipe baris 843–889): strip, nama (opsional),
 // tanggal, CTA "Bikin punyamu". Tanpa lokasi — kami tidak mengumpulkannya.
@@ -34,14 +39,30 @@ export function PublicResult({ data }: { data: PublicResultData }) {
         </span>
       </div>
 
-      <Strip
-        template={template}
-        tokens={{ date: formatStripDate(data.createdAt), host: SITE_HOST }}
-        filter={data.filter}
-        shadow="strip"
-        className="w-[192px] @sm:w-[220px]"
-        renderHalf={(i, side) => <FrameFill source={data.frames[i][side]} side={side} />}
-      />
+      {data.imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={data.imageUrl}
+          alt={data.names ? `Photostrip ${data.names}` : "Photostrip"}
+          width={template.canvas.width}
+          height={template.canvas.height}
+          className="h-auto w-[192px] shadow-strip @sm:w-[220px]"
+        />
+      ) : (
+        <div className="flex flex-col items-center gap-3">
+          <Strip
+            template={template}
+            tokens={{ date: formatStripDate(data.createdAt), host: SITE_HOST }}
+            filter={data.filter}
+            shadow="strip"
+            className="w-[192px] @sm:w-[220px]"
+            renderHalf={(i, side) => <FrameFill source={(data.frames?.[i] ?? PENDING)[side]} side={side} />}
+          />
+          {!data.frames && (
+            <span className="text-caption text-muted-foreground">Photostrip lagi disiapkan, muat ulang sebentar lagi.</span>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col gap-1">
         {data.names && <h1 className="font-display text-title font-semibold">{data.names}</h1>}

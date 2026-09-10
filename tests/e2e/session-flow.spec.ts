@@ -1,3 +1,4 @@
+import { statSync } from "node:fs"
 import { devices, expect, test, type Browser, type Page } from "@playwright/test"
 
 // Alur ke Supabase sungguhan: dua perangkat (host & tamu) di context terpisah,
@@ -26,7 +27,7 @@ async function expectFeed(page: Page, feed: "local" | "remote") {
           const v = document.querySelector<HTMLVideoElement>(`video[data-feed="${f}"]`)
           return !!v && v.readyState >= 2 && v.videoWidth > 0
         }, feed),
-      { timeout: 20_000, message: `video ${feed} jalan` }
+      { timeout: 30_000, message: `video ${feed} jalan` }
     )
     .toBe(true)
 }
@@ -58,7 +59,7 @@ async function expectPhotos(page: Page) {
 }
 
 test("dua orang: buat room, gabung, foto serentak, ulang, hasil", async ({ browser, baseURL }) => {
-  test.setTimeout(180_000)
+  test.setTimeout(240_000)
   const host = await newPhone(browser, baseURL)
   const guest = await newPhone(browser, baseURL)
 
@@ -162,12 +163,57 @@ test("dua orang: buat room, gabung, foto serentak, ulang, hasil", async ({ brows
   await expect(third.page.getByRole("heading", { name: "Room ini sudah penuh" })).toBeVisible({ timeout: 15_000 })
   await third.close()
 
-  // Link hasil membuka halaman publik dengan nama berdua.
+  // Unduh: file JPEG photostrip asli (Android = unduhan biasa).
+  const [download] = await Promise.all([
+    host.page.waitForEvent("download", { timeout: 30_000 }),
+    host.page.getByRole("button", { name: "Unduh photostrip" }).click(),
+  ])
+  expect(download.suggestedFilename()).toMatch(/^bareng-[A-Za-z0-9]{10}\.jpg$/)
+  expect(statSync(await download.path()).size).toBeGreaterThan(20_000)
+
+  // Link hasil → halaman publik: nama berdua + photostrip asli dari Storage.
   await guest.page.getByRole("button", { name: "Salin link" }).click()
   const link = await guest.page.evaluate(() => navigator.clipboard.readText())
   expect(link).toMatch(/\/p\/[A-Za-z0-9]{10}$/)
-  await guest.page.goto(new URL(link).pathname)
-  await expect(guest.page.getByRole("heading", { name: "Rara & Dimas" })).toBeVisible()
+  const publicPage = await guest.context.newPage()
+  const stripSrc = async () => {
+    await publicPage.goto(new URL(link).pathname)
+    return publicPage.locator('img[src*="/object/public/results/"]').getAttribute("src", { timeout: 1_000 }).catch(() => null)
+  }
+  await expect.poll(stripSrc, { timeout: 40_000 }).toContain("/polaroid-none-free.jpg")
+  await expect(publicPage.getByRole("heading", { name: "Rara & Dimas" })).toBeVisible()
+  const strip = publicPage.locator('img[src*="/object/public/results/"]')
+  await expect.poll(() => strip.evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBe(1080)
+  const imageUrl = (await strip.getAttribute("src"))!
+
+  // Pratinjau link (WhatsApp dll.): kartu JPEG hasil ini.
+  const og = await publicPage.locator('meta[property="og:image"]').getAttribute("content")
+  const ogUrl = new URL(og!)
+  const ogRes = await publicPage.request.get(ogUrl.pathname + ogUrl.search)
+  expect(ogRes.status()).toBe(200)
+  expect(ogRes.headers()["content-type"]).toBe("image/jpeg")
+
+  // Premium dari layar hasil → render ulang HD (2160 px) tanpa watermark.
+  await host.page.getByRole("button", { name: /Lihat premium/ }).click()
+  await host.page.getByRole("button", { name: /^Bayar/ }).click()
+  await expect(host.page.getByText("Sesi premium aktif.", { exact: false })).toBeVisible({ timeout: 15_000 })
+  await expect.poll(stripSrc, { timeout: 40_000 }).toContain("/polaroid-none-premium.jpg")
+  await expect.poll(() => strip.evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBe(2160)
+
+  // Ganti template di layar hasil → photostrip dirender & diunggah ulang.
+  await host.page.getByRole("radio", { name: /Grid kotak/ }).click()
+  await expect.poll(stripSrc, { timeout: 40_000 }).toContain("/kotak-none-premium.jpg")
+
+  // Hapus: link mati, file dibuang dari Storage, layar dia ikut tahu.
+  await host.page.getByRole("button", { name: "Hapus foto ini" }).click()
+  await host.page.getByRole("button", { name: "Hapus foto" }).click()
+  await expect(host.page).toHaveURL(/\/$/)
+  await expect(guest.page.getByRole("heading", { name: "Photostrip ini sudah dihapus" })).toBeVisible()
+  const gone = await publicPage.goto(new URL(link).pathname)
+  expect(gone?.status()).toBe(404)
+  await expect
+    .poll(async () => (await publicPage.request.get(`${imageUrl}?t=${Date.now()}`)).status(), { timeout: 20_000 })
+    .not.toBe(200)
 
   expect(host.errors).toEqual([])
   expect(guest.errors).toEqual([])
