@@ -8,7 +8,7 @@ import { FAQ } from "@/lib/content/faq"
 import { PREMIUM_PRICE_SHORT } from "@/lib/content/pricing"
 import { DEMO_FRAMES } from "@/lib/session/demo"
 import { BUILTIN_TEMPLATES, getTemplate } from "@/lib/templates/builtin"
-import { LOOKS, lookBackground, stripe } from "@/lib/templates/placeholder"
+import { LOOKS, lookBackground } from "@/lib/templates/placeholder"
 import { cn } from "@/lib/utils"
 import { Faq } from "./faq"
 import { StartButton } from "./start-button"
@@ -64,11 +64,12 @@ export function Landing() {
 
         <Pricing />
 
-        <section id="faq" className="flex scroll-mt-6 flex-col gap-3">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-small font-semibold">Pertanyaan yang sering muncul</h2>
-            <span className="text-caption text-muted-foreground">ketuk untuk buka</span>
-          </div>
+        <section id="faq" className="flex scroll-mt-6 flex-col gap-4 @3xl:gap-6">
+          <SectionHeader
+            title="Pertanyaan yang sering muncul"
+            desc="Hal-hal yang biasanya ditanya sebelum foto pertama."
+            aside="ketuk untuk buka"
+          />
           <Faq />
           <div className="flex items-center justify-between gap-3 rounded-md border-[1.5px] border-line bg-sunken px-4 py-3.5 @3xl:px-6 @3xl:py-5">
             <span className="flex flex-col gap-0.5">
@@ -92,6 +93,19 @@ export function Landing() {
           }),
         }}
       />
+    </div>
+  )
+}
+
+// Judul section: Bricolage, dengan satu kalimat penjelas di bawahnya.
+function SectionHeader({ title, desc, aside }: { title: string; desc: string; aside?: string }) {
+  return (
+    <div className="flex flex-col gap-1.5 @3xl:flex-row @3xl:items-end @3xl:justify-between @3xl:gap-8">
+      <div className="flex max-w-[56ch] flex-col gap-1.5">
+        <h2 className="font-display text-[22px] leading-tight font-bold tracking-[-0.01em] @3xl:text-display-md">{title}</h2>
+        <p className="text-small text-muted-foreground @3xl:text-body">{desc}</p>
+      </div>
+      {aside && <span className="shrink-0 text-caption text-muted-foreground @3xl:pb-1">{aside}</span>}
     </div>
   )
 }
@@ -125,57 +139,32 @@ const STEPS = [
   { title: "Hitung mundur bareng", desc: "Empat foto, satu photostrip, langsung bisa diunduh." },
 ]
 
-// Mobile: baris ringkas persis prototipe. Desktop: kartu dengan cuplikan layar
-// aplikasi (kode room, chat berisi link, hitung mundur di dua kamera).
+// Tiap langkah punya cuplikan layar aplikasi: kode room, chat berisi link,
+// hitung mundur di dua kamera.
 function HowItWorks() {
   return (
-    <section id="cara-kerja" className="flex scroll-mt-6 flex-col gap-3.5 @3xl:gap-5">
-      <h2 className="text-small font-semibold">Cara kerjanya</h2>
-      <ol className="grid gap-2.5 @3xl:grid-cols-3 @3xl:gap-6">
+    <section id="cara-kerja" className="flex scroll-mt-6 flex-col gap-4 @3xl:gap-6">
+      <SectionHeader
+        title="Cara kerjanya"
+        desc="Tiga langkah, sekitar 90 detik dari bikin room sampai photostrip jadi."
+      />
+      <ol className="grid gap-3 @3xl:grid-cols-3 @3xl:gap-6">
         {STEPS.map((step, i) => (
-          <li
-            key={step.title}
-            className="flex flex-col rounded-md bg-card px-3.5 py-[13px] @3xl:gap-5 @3xl:p-3 @3xl:pb-6"
-          >
+          <li key={step.title} className="flex flex-col gap-4 rounded-md bg-card p-3 pb-5 @3xl:gap-5 @3xl:pb-6">
             <StepScene step={i} />
-            <div className="flex items-center gap-[13px] @3xl:items-start @3xl:px-2">
+            <div className="flex items-start gap-3 px-1 @3xl:px-2">
               <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-darkroom font-display text-label font-semibold text-kertas">
                 {i + 1}
               </span>
-              <span className="flex flex-1 flex-col gap-0.5 @3xl:gap-1">
-                <span className="text-label font-semibold @3xl:text-body">{step.title}</span>
-                <span className="text-meta leading-[1.4] text-muted-foreground @3xl:text-small">{step.desc}</span>
+              <span className="flex flex-1 flex-col gap-1">
+                <span className="text-body font-semibold">{step.title}</span>
+                <span className="text-meta leading-[1.45] text-muted-foreground @3xl:text-small">{step.desc}</span>
               </span>
-              <StepArt step={i} />
             </div>
           </li>
         ))}
       </ol>
     </section>
-  )
-}
-
-function StepArt({ step }: { step: number }) {
-  const base = "shrink-0 @3xl:hidden"
-  if (step === 0) {
-    return (
-      <span aria-hidden className={cn(base, "flex gap-[3px]")}>
-        <span className="h-4 w-[9px] rounded-[2px] bg-[#C6C3BA]" />
-        <span className="h-4 w-[9px] rounded-[2px] bg-[#C6C3BA]" />
-        <span className="h-4 w-[9px] rounded-[2px] bg-shutter" />
-      </span>
-    )
-  }
-  if (step === 1) {
-    return <span aria-hidden className={cn(base, "h-[22px] w-7 rounded-[8px_8px_2px_8px] bg-ok")} />
-  }
-  return (
-    <span
-      aria-hidden
-      className={cn(base, "flex size-[30px] items-center justify-center rounded-full bg-darkroom font-display text-label font-extrabold text-flash")}
-    >
-      3
-    </span>
   )
 }
 
@@ -185,7 +174,7 @@ function StepScene({ step }: { step: number }) {
   return (
     <div
       aria-hidden
-      className="relative hidden h-44 items-center justify-center overflow-hidden rounded-[10px] bg-darkroom text-kertas @3xl:flex"
+      className="relative flex h-40 items-center justify-center overflow-hidden rounded-[10px] bg-darkroom text-kertas @3xl:h-44"
     >
       <span className="absolute inset-0 bg-dots [--dots-color:rgb(244_243_239/0.06)]" />
       {step === 0 && (
@@ -247,11 +236,12 @@ const SHOWCASE = [
 
 function TemplatesPreview() {
   return (
-    <section id="template" className="flex scroll-mt-6 flex-col gap-3">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-small font-semibold">Tiga dari enam template</h2>
-        <span className="text-caption text-muted-foreground">3 gratis, 3 premium</span>
-      </div>
+    <section id="template" className="flex scroll-mt-6 flex-col gap-4 @3xl:gap-6">
+      <SectionHeader
+        title="Tiga dari enam template"
+        desc="Kertas, bingkai, dan tanggalnya ikut tercetak. Pilih bareng, berubah di layar dia juga."
+        aside="3 gratis, 3 premium"
+      />
       <div className="relative overflow-hidden rounded-md bg-card px-4 pt-6 pb-4 @3xl:px-10 @3xl:pt-12 @3xl:pb-8">
         <span aria-hidden className="absolute inset-0 bg-dots [--dots-color:#D5D2C9]" />
         <div className="relative grid grid-cols-3 items-end justify-items-center gap-x-3 gap-y-3 @3xl:mx-auto @3xl:max-w-[640px] @3xl:gap-x-10 @3xl:gap-y-5">
@@ -292,52 +282,24 @@ const FEATURES = [
   { title: "Ulang satu foto", desc: "Yang jelek diulang, tiga lainnya aman." },
 ]
 
-// Mobile: ikon kecil prototipe. Desktop: visual hasil cetak yang menjelaskan fiturnya.
+// Tiap fitur dijelaskan lewat visual hasil cetak, bukan ikon abstrak.
 function Features() {
   return (
-    <section className="flex flex-col gap-3 @3xl:gap-5">
-      <h2 className="text-small font-semibold">Yang bikin ini terasa satu foto</h2>
+    <section className="flex flex-col gap-4 @3xl:gap-6">
+      <SectionHeader
+        title="Yang bikin ini terasa satu foto"
+        desc="Bukan dua kotak video call yang ditempel. Ini yang kami kerjakan supaya hasilnya jadi satu frame."
+      />
       <div className="grid grid-cols-2 gap-3 @3xl:grid-cols-4 @3xl:gap-6">
         {FEATURES.map((f, i) => (
-          <div key={f.title} className="flex flex-col gap-2 rounded-md bg-card p-3.5 @3xl:gap-2 @3xl:p-3 @3xl:pb-5">
-            <FeatureArt index={i} />
+          <div key={f.title} className="flex flex-col gap-1.5 rounded-md bg-card p-2.5 pb-4 @3xl:gap-2 @3xl:p-3 @3xl:pb-5">
             <FeatureScene index={i} />
-            <span className="text-small font-semibold @3xl:mt-3 @3xl:px-1 @3xl:text-body">{f.title}</span>
-            <span className="text-meta leading-[1.45] text-muted-foreground @3xl:px-1 @3xl:text-small">{f.desc}</span>
+            <span className="mt-2 px-1 text-small font-semibold @3xl:mt-3 @3xl:text-body">{f.title}</span>
+            <span className="px-1 text-meta leading-[1.45] text-muted-foreground @3xl:text-small">{f.desc}</span>
           </div>
         ))}
       </div>
     </section>
-  )
-}
-
-function FeatureArt({ index }: { index: number }) {
-  const tile = "relative flex size-11 items-center justify-center rounded-[8px] bg-darkroom @3xl:hidden"
-  if (index === 0) {
-    return <span aria-hidden className={cn(tile, "font-display text-[22px] font-extrabold text-flash")}>3</span>
-  }
-  if (index === 1) {
-    return (
-      <span aria-hidden className={cn(tile, "gap-[3px] p-1.5")}>
-        <span className="h-full flex-1" style={{ background: stripe("#40384A", "#372F41", 5) }} />
-        <span className="h-full flex-1" style={{ background: stripe("#463C33", "#3D342C", 5) }} />
-      </span>
-    )
-  }
-  if (index === 2) {
-    return (
-      <span aria-hidden className={cn(tile, "gap-1 p-[7px]")}>
-        <span className="h-full w-[7px] bg-kertas" />
-        <span className="h-full w-[7px] bg-flash" />
-        <span className="h-full w-[7px] bg-grain" />
-      </span>
-    )
-  }
-  return (
-    <span aria-hidden className={cn(tile, "block")}>
-      <span className="absolute top-2.5 left-2.5 h-4 w-5 border-[1.75px] border-kertas" />
-      <span className="absolute right-[9px] bottom-[9px] size-3.5 rounded-[3px] bg-shutter" />
-    </span>
   )
 }
 
@@ -348,9 +310,11 @@ function FeatureScene({ index }: { index: number }) {
   return (
     <div
       aria-hidden
-      className="relative hidden h-36 items-center justify-center overflow-hidden rounded-[10px] bg-sunken @3xl:flex"
+      className="relative flex h-[108px] items-center justify-center overflow-hidden rounded-[10px] bg-sunken @3xl:h-36"
     >
       <span className="absolute inset-0 bg-dots" />
+      {/* Visualnya sama di semua ukuran; di kartu mobile yang sempit diperkecil. */}
+      <div className="relative flex scale-[0.7] items-center justify-center @3xl:scale-100">
       {index === 0 && (
         <div className="relative flex items-center gap-2">
           <MiniPhone />
@@ -410,12 +374,13 @@ function FeatureScene({ index }: { index: number }) {
               slot === 1 ? <span className="absolute inset-0 bg-darkroom-2" /> : <FrameFill source={DEMO_FRAMES[slot][side]} side={side} />
             }
           />
-          <span className="flex items-center gap-1.5 rounded-full bg-darkroom px-2.5 py-1 text-[11px] font-semibold text-kertas">
+          <span className="flex items-center gap-1.5 rounded-full bg-darkroom px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap text-kertas">
             <RotateCcwIcon className="size-3" />
             Ulang foto 2
           </span>
         </div>
       )}
+      </div>
     </div>
   )
 }
@@ -466,70 +431,56 @@ const PRICE_FACTS = [
   { label: "Tanpa langganan", dot: "bg-ok" },
 ]
 
-// Mobile: dua kartu ringkas prototipe. Desktop: kartu lebar dengan contoh strip
-// (pakai / tanpa watermark) supaya bedanya kelihatan, bukan cuma dibaca.
+// Kartu harga dengan contoh strip (pakai / tanpa watermark) supaya bedanya
+// kelihatan, bukan cuma dibaca. Satu kolom di mobile, dua di desktop.
 function Pricing() {
   return (
-    <section id="harga" className="flex scroll-mt-6 flex-col gap-3 @3xl:gap-5">
-      <h2 className="text-small font-semibold">Harga</h2>
-      <div className="grid grid-cols-2 gap-3 @3xl:gap-6">
+    <section id="harga" className="flex scroll-mt-6 flex-col gap-4 @3xl:gap-6">
+      <SectionHeader title="Harga" desc="Gratis selamanya. Bayar cuma kalau mau hasil tanpa watermark." />
+      <div className="grid gap-3 @3xl:grid-cols-2 @3xl:gap-6">
         {PLANS.map((plan) => (
           <div
             key={plan.name}
             className={cn(
-              "relative flex flex-col gap-2.5 overflow-hidden rounded-md px-3.5 py-4 @3xl:grid @3xl:grid-cols-[1fr_auto] @3xl:gap-6 @3xl:p-7",
+              "relative grid grid-cols-[1fr_auto] gap-4 overflow-hidden rounded-md p-5 @3xl:gap-6 @3xl:p-7",
               plan.premium ? "bg-darkroom text-kertas" : "border-[1.5px] border-line"
             )}
           >
-            {plan.premium && (
-              <span className="absolute top-3 right-3 rounded-sm bg-flash px-[7px] py-[3px] text-[10px] font-semibold text-darkroom @3xl:hidden">
-                Premium
-              </span>
-            )}
-            <div className="flex flex-col gap-2.5 @3xl:gap-4">
+            <div className="flex min-w-0 flex-col gap-3 @3xl:gap-4">
               <span className="flex items-center gap-2">
-                <span
-                  className={cn(
-                    "text-meta font-semibold @3xl:text-small",
-                    plan.premium ? "text-kabin-soft" : "text-muted-foreground"
-                  )}
-                >
+                <span className={cn("text-small font-semibold", plan.premium ? "text-kabin-soft" : "text-muted-foreground")}>
                   {plan.name}
                 </span>
                 {plan.premium && (
-                  <span className="hidden rounded-sm bg-flash px-[7px] py-[3px] text-caption font-semibold text-darkroom @3xl:inline">
+                  <span className="rounded-sm bg-flash px-[7px] py-[3px] text-caption leading-none font-semibold text-darkroom">
                     Premium
                   </span>
                 )}
               </span>
-              <span className="flex items-baseline gap-2">
-                <span className="font-display text-[26px] leading-none font-extrabold @3xl:text-[44px]">{plan.price}</span>
-                <span className={cn("hidden text-small @3xl:inline", plan.premium ? "text-kabin-muted" : "text-muted-foreground")}>
-                  {plan.unit}
-                </span>
+              <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <span className="font-display text-[36px] leading-none font-extrabold @3xl:text-[44px]">{plan.price}</span>
+                <span className={cn("text-small", plan.premium ? "text-kabin-muted" : "text-muted-foreground")}>{plan.unit}</span>
               </span>
               <ul
                 className={cn(
-                  "flex flex-col gap-1.5 text-caption @3xl:gap-2.5 @3xl:border-t @3xl:pt-4 @3xl:text-small",
-                  plan.premium ? "text-[#E4E2E8] @3xl:border-[#2A2636]" : "text-soft-foreground @3xl:border-line"
+                  "flex flex-col gap-2 border-t pt-3 text-small @3xl:gap-2.5 @3xl:pt-4",
+                  plan.premium ? "border-[#2A2636] text-[#E4E2E8]" : "border-line text-soft-foreground"
                 )}
               >
                 {plan.perks.map((perk) => (
                   <li key={perk} className="flex items-center gap-2.5">
                     {plan.premium ? (
-                      <CheckIcon aria-hidden className="hidden size-4 shrink-0 text-flash @3xl:block" strokeWidth={2.5} />
+                      <CheckIcon aria-hidden className="size-4 shrink-0 text-flash" strokeWidth={2.5} />
                     ) : (
-                      <span aria-hidden className="hidden size-1.5 shrink-0 rounded-full bg-grain @3xl:mx-[5px] @3xl:block" />
+                      <span aria-hidden className="mx-[5px] size-1.5 shrink-0 rounded-full bg-grain" />
                     )}
                     {perk}
                   </li>
                 ))}
               </ul>
-              <span className={cn("hidden text-caption @3xl:block", plan.premium ? "text-kabin-muted" : "text-muted-foreground")}>
-                {plan.note}
-              </span>
+              <span className={cn("text-caption", plan.premium ? "text-kabin-muted" : "text-muted-foreground")}>{plan.note}</span>
             </div>
-            <div className="relative hidden w-[112px] items-center justify-center self-center @3xl:flex">
+            <div className="relative flex w-[76px] items-center justify-center self-center @3xl:w-[112px]">
               <Strip
                 template={getTemplate(plan.premium ? "kodak" : "film")}
                 tokens={{ date: "14.02.27", host: "bareng.id" }}
@@ -543,11 +494,8 @@ function Pricing() {
         ))}
       </div>
       <div className="flex flex-wrap gap-2">
-        {PRICE_FACTS.map((fact, i) => (
-          <span
-            key={fact.label}
-            className={cn("items-center gap-[7px] rounded-full bg-card px-3 py-2 text-caption", i === 0 ? "inline-flex" : "hidden @3xl:inline-flex")}
-          >
+        {PRICE_FACTS.map((fact) => (
+          <span key={fact.label} className="inline-flex items-center gap-[7px] rounded-full bg-card px-3 py-2 text-caption">
             <span aria-hidden className={cn("size-1.5 rounded-full", fact.dot)} />
             {fact.label}
           </span>
