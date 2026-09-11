@@ -610,6 +610,17 @@ html:has(main[data-screen="capture"]) [data-sonner-toaster][data-y-position="bot
   bottom: calc(168px + env(safe-area-inset-bottom));
 }
 
+/* Lobby: bar siap menempel di bawah. Hasil di HP: aksi utama melayang di
+   bawah. Toast naik supaya tidak menutupi tombolnya. */
+html:has(main[data-screen="lobby"]) [data-sonner-toaster][data-y-position="bottom"] {
+  bottom: calc(144px + env(safe-area-inset-bottom));
+}
+@media (max-width: 767px) {
+  html:has(main[data-screen="hasil"]) [data-sonner-toaster][data-y-position="bottom"] {
+    bottom: calc(148px + env(safe-area-inset-bottom));
+  }
+}
+
 /* Ilustrasi landing di luar layar: animasi dijeda supaya hemat baterai. */
 [data-art]:not([data-live]),
 [data-art]:not([data-live]) * {

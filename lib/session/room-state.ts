@@ -210,8 +210,7 @@ export function partnerEventMessage(event: RoomEvent, partnerName: string, templ
       const list = (event.indices as number[] | undefined)?.map((i) => i + 1).join(" & ")
       return list ? `${partnerName} minta ulang foto ${list}` : null
     }
-    case "done":
-      return "Photostrip kalian jadi"
+    // "done" tanpa toast: layar hasil sudah bilang "Jadi!".
     case "upgraded":
       return "Sesi jadi premium"
     case "left":

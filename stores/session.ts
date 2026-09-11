@@ -794,7 +794,8 @@ export const useSession = create<Store>()((set, get) => {
         notify("Tunggu sebentar, foto masih dikirim")
         return
       }
-      notify("Photostrip kalian jadi")
+      // Tanpa toast: judul layar hasil sudah bilang "Jadi!", dan toast di HP
+      // menutupi tombol unduh tepat saat mau diketuk.
       if (get().roomId) guard(() => api.finishSession(room()))
     },
     // iPhone: lembar bagikan (Simpan Gambar ke Foto). Lainnya: unduh file.

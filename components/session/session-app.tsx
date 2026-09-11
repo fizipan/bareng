@@ -64,7 +64,11 @@ export function SessionApp({ code, framed = false }: { code?: string; framed?: b
       <main
         key={screen}
         data-screen={screen}
-        className="relative mx-auto flex min-h-0 w-full max-w-[440px] flex-1 animate-fade-in flex-col"
+        className={cn(
+          "relative mx-auto flex min-h-0 w-full flex-1 animate-fade-in flex-col",
+          // Hasil punya tata letak dua kolom di layar lebar; sisanya satu kolom HP.
+          screen === "hasil" ? "max-w-[1040px]" : "max-w-[440px]"
+        )}
       >
         <ScreenView />
       </main>

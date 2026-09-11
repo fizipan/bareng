@@ -13,6 +13,8 @@ const buttonVariants = cva(
         secondary:
           "border-[1.5px] border-outline bg-transparent text-foreground hover:bg-foreground/5 disabled:opacity-40",
         soft: "bg-card text-card-foreground hover:bg-card/80 disabled:opacity-40",
+        // Tombol terang di atas kartu gelap (kartu premium di layar hasil).
+        paper: "bg-kertas text-darkroom hover:bg-white disabled:opacity-40",
         ghost:
           "bg-transparent font-medium text-muted-foreground hover:text-foreground disabled:opacity-40",
         link: "bg-transparent px-0 text-link underline-offset-4 hover:underline disabled:opacity-40",
