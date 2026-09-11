@@ -223,6 +223,10 @@ export type Database = {
       track: { Args: { p_room: string; p_name: string; p_props?: Json }; Returns: undefined }
       admin_stats: { Args: { p_days?: number }; Returns: Json }
       admin_demo_devices: { Args: never; Returns: Json }
+      admin_demo_requests: { Args: never; Returns: Json }
+      admin_demo_decide: { Args: { p_id: string; p_approve: boolean; p_days?: number | null }; Returns: undefined }
+      request_demo: { Args: { p_name: string; p_contact?: string; p_note?: string; p_meta?: Json }; Returns: Json }
+      demo_status: { Args: never; Returns: Json }
       admin_demo_set: { Args: { p_user: string; p_label: string; p_on: boolean }; Returns: undefined }
       payment_open: {
         Args: { p_user: string; p_room: string; p_template: string | null; p_provider: string; p_amount: number }

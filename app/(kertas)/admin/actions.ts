@@ -55,6 +55,22 @@ export async function enableDemoDevice(token: string, label: string) {
   return { ok: !error }
 }
 
+// Setujui / tolak permintaan akses demo dari halaman /demo.
+export async function decideDemoRequest(form: FormData) {
+  if (!(await isAdmin())) redirect("/admin")
+  const id = String(form.get("id") ?? "")
+  if (!/^[0-9a-f-]{36}$/.test(id)) return
+  const sb = supabaseAdmin()
+  if (!sb) return
+  const hari = String(form.get("hari") ?? "")
+  await sb.rpc("admin_demo_decide", {
+    p_id: id,
+    p_approve: form.get("approve") === "1",
+    p_days: /^\d{1,3}$/.test(hari) ? Number(hari) : null,
+  })
+  revalidatePath("/admin")
+}
+
 export async function revokeDemoDevice(form: FormData) {
   if (!(await isAdmin())) redirect("/admin")
   const id = String(form.get("user") ?? "")

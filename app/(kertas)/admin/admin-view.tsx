@@ -4,7 +4,7 @@ import { Logo } from "@/components/brand/logo"
 import { FEEDBACK_KINDS, feedbackLabel } from "@/lib/content/feedback"
 import { cn } from "@/lib/utils"
 import { ConfirmAction } from "./confirm-action"
-import { DemoView, type DemoDevice } from "./demo-view"
+import { DemoView, type DemoDevice, type DemoRequest } from "./demo-view"
 import { FeedbackList, KIND_STYLE, type FeedbackItem } from "./feedback-list"
 import { HistoryList, needsReview, ReviewList, type QueueItem } from "./report-queue"
 import { StatsView, type AdminStats } from "./stats-view"
@@ -25,6 +25,7 @@ type Actions = {
   logout: (form: FormData) => Promise<void>
   enableDemo: (token: string, label: string) => Promise<{ ok: boolean }>
   revokeDemo: (form: FormData) => Promise<void>
+  decideDemo: (form: FormData) => Promise<void>
 }
 
 const HEADER: Record<AdminParams["view"], [string, string]> = {
@@ -57,6 +58,7 @@ export function AdminView({
   feedback,
   stats,
   demo,
+  demoRequests,
   deviceLabel,
   error,
   now,
@@ -68,6 +70,7 @@ export function AdminView({
   feedback: FeedbackItem[]
   stats: AdminStats | null
   demo: DemoDevice[]
+  demoRequests: DemoRequest[]
   deviceLabel: string
   error: string | null
   now: number
@@ -92,7 +95,7 @@ export function AdminView({
     { key: "laporan", label: "Laporan", icon: FlagIcon, count: reportsOpen.length },
     { key: "masukan", label: "Masukan", icon: MessageSquareIcon, count: feedbackOpen.length },
     { key: "statistik", label: "Statistik", icon: ChartNoAxesColumnIcon, count: 0 },
-    { key: "demo", label: "Demo", icon: PresentationIcon, count: 0 },
+    { key: "demo", label: "Demo", icon: PresentationIcon, count: demoRequests.filter((r) => r.status === "pending").length },
   ] as const
 
   const isReports = params.view === "laporan"
@@ -275,7 +278,15 @@ export function AdminView({
         ) : params.view === "statistik" ? (
           stats && <StatsView stats={stats} />
         ) : params.view === "demo" ? (
-          <DemoView devices={demo} defaultLabel={deviceLabel} now={now} enable={actions.enableDemo} revoke={actions.revokeDemo} />
+          <DemoView
+            devices={demo}
+            requests={demoRequests}
+            defaultLabel={deviceLabel}
+            now={now}
+            enable={actions.enableDemo}
+            revoke={actions.revokeDemo}
+            decide={actions.decideDemo}
+          />
         ) : isReports ? (
           params.status === "selesai" ? (
             <HistoryList items={reportsDone} now={now} />

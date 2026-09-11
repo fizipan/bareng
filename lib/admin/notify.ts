@@ -91,3 +91,35 @@ export async function emailFeedback(input: {
   })
   if (!res.ok) console.error("[bantuan] email gagal", res.status, await res.text().catch(() => ""))
 }
+
+// Permintaan akses demo dari halaman /demo.
+export async function emailDemoRequest(input: { name: string; contact: string | null; note: string | null; device: string | null }) {
+  const key = process.env.RESEND_API_KEY
+  const to = process.env.ADMIN_EMAIL
+  if (!key || !to) {
+    console.warn("[demo] RESEND_API_KEY / ADMIN_EMAIL belum di-set, email tidak dikirim")
+    return
+  }
+  const meta = [
+    input.contact && `Kontak: ${escape(input.contact)}`,
+    input.device && `Perangkat: ${escape(input.device)}`,
+  ].filter(Boolean)
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: process.env.REPORT_EMAIL_FROM ?? "Bareng <onboarding@resend.dev>",
+      to: [to],
+      subject: `[Demo] Permintaan dari ${input.name}`,
+      html: `<div style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.5;color:#16141D">
+<p style="font-size:18px;font-weight:700;margin:0 0 12px">Permintaan akses demo</p>
+<p style="margin:0 0 14px;padding:12px 14px;background:#E9E7E1;border-radius:10px"><b>${escape(input.name)}</b>${
+        input.note ? `<br><span style="white-space:pre-wrap">${escape(input.note)}</span>` : ""
+      }</p>
+<p style="margin:0 0 16px;font-size:13px">${meta.join("<br>")}</p>
+<p style="margin:0"><a href="${SITE_URL}/admin?view=demo" style="display:inline-block;background:#16141D;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none;font-weight:600">Tinjau di halaman admin</a></p>
+</div>`,
+    }),
+  })
+  if (!res.ok) console.error("[demo] email gagal", res.status, await res.text().catch(() => ""))
+}

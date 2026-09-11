@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation"
-import type { DemoDevice } from "@/app/(kertas)/admin/demo-view"
+import type { DemoDevice, DemoRequest } from "@/app/(kertas)/admin/demo-view"
 import type { FeedbackItem } from "@/app/(kertas)/admin/feedback-list"
 import type { AdminStats } from "@/app/(kertas)/admin/stats-view"
 import type { QueueItem } from "@/app/(kertas)/admin/report-queue"
@@ -126,8 +126,31 @@ const STATS: AdminStats = {
 }
 
 const DEMO: DemoDevice[] = [
-  { user_id: "00000000-0000-0000-0000-00000000000a", label: "iPhone 15 · iOS", created_at: NOW - 3 * 86_400_000, rooms: 12, last_room_at: NOW - 2 * 3_600_000 },
-  { user_id: "00000000-0000-0000-0000-00000000000b", label: "Laptop kantor · macOS", created_at: NOW - 20 * 86_400_000, rooms: 3, last_room_at: null },
+  { user_id: "00000000-0000-0000-0000-00000000000a", label: "Rara · iPhone 15", created_at: NOW - 3 * 86_400_000, expires_at: NOW + 27 * 86_400_000, rooms: 12, last_room_at: NOW - 2 * 3_600_000 },
+  { user_id: "00000000-0000-0000-0000-00000000000b", label: "Laptop kantor · macOS", created_at: NOW - 20 * 86_400_000, expires_at: null, rooms: 3, last_room_at: null },
+]
+
+const DEMO_REQUESTS: DemoRequest[] = [
+  {
+    id: "00000000-0000-0000-0000-0000000000c1",
+    name: "Dimas Prakoso",
+    contact: "0812-3456-7890",
+    note: "Mau tunjukkan ke calon klien wedding, kliennya minta lihat contoh hasil premium.",
+    meta: { browser: "Chrome", os: "Android", model: "SM-A546E" },
+    status: "pending",
+    created_at: NOW - 40 * 60_000,
+    decided_at: null,
+  },
+  {
+    id: "00000000-0000-0000-0000-0000000000c2",
+    name: "Nisa",
+    contact: "nisa@contoh.id",
+    note: null,
+    meta: { browser: "Safari", os: "iOS" },
+    status: "approved",
+    created_at: NOW - 2 * 86_400_000,
+    decided_at: NOW - 2 * 86_400_000 + 3_600_000,
+  },
 ]
 
 async function noop() {
@@ -151,10 +174,11 @@ export default async function DevAdminPage({ searchParams }: PageProps<"/dev/adm
         feedback={FEEDBACK}
         stats={STATS}
         demo={DEMO}
+        demoRequests={DEMO_REQUESTS}
         deviceLabel="Chrome · macOS"
         error={null}
         now={NOW}
-        actions={{ resolveReport: noop, resolveFeedback: noop, logout: noop, enableDemo: noopDemo, revokeDemo: noop }}
+        actions={{ resolveReport: noop, resolveFeedback: noop, logout: noop, enableDemo: noopDemo, revokeDemo: noop, decideDemo: noop }}
       />
     </ModeRoot>
   )
