@@ -1,7 +1,6 @@
-// Geometri tokoh "kamu" & "dia" tanpa animasi, untuk gambar statis: OG situs
-// (SVG, app/opengraph-image.tsx) dan kartu pratinjau hasil (Canvas,
-// lib/templates/share-card.ts). Harus sama dengan <Figure> di figure.tsx —
-// dijaga tests/unit/figure-shapes.test.ts.
+// Geometri tokoh "kamu" & "dia" tanpa animasi, untuk gambar statis (OG situs,
+// app/opengraph-image.tsx). Harus sama dengan <Figure> di figure.tsx — dijaga
+// tests/unit/figure-shapes.test.ts.
 
 export type Who = "kamu" | "dia"
 export type StillPose = "diam" | "miring" | "peace" | "kaget" | "hati" | "lambai"
@@ -134,64 +133,4 @@ function nodeSvg(n: Node): string {
 export function figureSvg(who: Who, pose: StillPose, background?: string) {
   const bg = background ? `<rect width="60" height="60" fill="${background}"/>` : ""
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60">${bg}${nodeSvg(figureTree(who, pose))}</svg>`
-}
-
-// ── Canvas ──────────────────────────────────────────────────────────────────
-function applyOps(ctx: CanvasRenderingContext2D, ops?: Op[]) {
-  for (const o of ops ?? []) {
-    if (o[0] === "translate") ctx.translate(o[1], o[2])
-    else if (o[0] === "scale") ctx.scale(o[1], o[2])
-    else {
-      ctx.translate(o[2], o[3])
-      ctx.rotate((o[1] * Math.PI) / 180)
-      ctx.translate(-o[2], -o[3])
-    }
-  }
-}
-
-function drawNode(ctx: CanvasRenderingContext2D, n: Node) {
-  ctx.save()
-  if (n.t === "g") {
-    applyOps(ctx, n.ops)
-    n.children.forEach((c) => drawNode(ctx, c))
-  } else if (n.t === "path") {
-    applyOps(ctx, n.ops)
-    const p = new Path2D(n.d)
-    if (n.stroke) {
-      ctx.strokeStyle = n.stroke
-      ctx.lineWidth = n.strokeWidth ?? 1
-      ctx.lineCap = "round"
-      ctx.stroke(p)
-    } else {
-      ctx.fillStyle = n.fill
-      ctx.fill(p)
-    }
-  } else if (n.t === "circle") {
-    ctx.fillStyle = n.fill
-    ctx.beginPath()
-    ctx.arc(n.cx, n.cy, n.r, 0, Math.PI * 2)
-    ctx.fill()
-  } else {
-    applyOps(ctx, n.ops)
-    ctx.fillStyle = n.fill
-    const { x, y, w, h, rx } = n
-    ctx.beginPath()
-    ctx.moveTo(x + rx, y)
-    ctx.arcTo(x + w, y, x + w, y + h, rx)
-    ctx.arcTo(x + w, y + h, x, y + h, rx)
-    ctx.arcTo(x, y + h, x, y, rx)
-    ctx.arcTo(x, y, x + w, y, rx)
-    ctx.closePath()
-    ctx.fill()
-  }
-  ctx.restore()
-}
-
-// Gambar tokoh di kotak (x, y, size×size), dalam satuan kanvas.
-export function drawFigure(ctx: CanvasRenderingContext2D, who: Who, pose: StillPose, x: number, y: number, size: number) {
-  ctx.save()
-  ctx.translate(x, y)
-  ctx.scale(size / 60, size / 60)
-  drawNode(ctx, figureTree(who, pose))
-  ctx.restore()
 }

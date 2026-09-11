@@ -1,12 +1,11 @@
 "use client"
 
-import { drawFigure } from "@/components/art/figure-shapes"
 import { BRAND } from "@/lib/brand"
 import { roundedRect } from "./render"
 
 // Gambar pratinjau link hasil (WhatsApp, IG, X) 1200×630: gaya sama dengan OG
-// landing (app/opengraph-image.tsx), strip asli di kanan dengan kamu & dia
-// mengintip dari baliknya. JPEG kecil supaya pratinjau WhatsApp tetap muncul.
+// landing (app/opengraph-image.tsx), strip asli di kanan. JPEG kecil supaya
+// pratinjau WhatsApp tetap muncul.
 
 const W = 1200
 const H = 630
@@ -79,17 +78,13 @@ export async function renderShareCard({
     }
   }
 
-  // Strip asli di kanan, sedikit miring dengan bayangan; kamu & dia (digambar
-  // lebih dulu) mengintip dari balik kedua sisinya.
+  // Strip asli di kanan, sedikit miring dengan bayangan.
   const maxH = H - 70
   const maxW = 330
   const scale = Math.min(maxH / strip.height, maxW / strip.width)
   const sw = strip.width * scale
   const sh = strip.height * scale
-  const cx = W - 150 - sw / 2
-  const pal = 180
-  drawFigure(ctx, "kamu", "lambai", cx - sw / 2 - pal * 0.62, H - pal + 6, pal)
-  drawFigure(ctx, "dia", "peace", cx + sw / 2 - pal * 0.3, H - pal + 6, pal)
+  const cx = W - 80 - sw / 2
   ctx.save()
   ctx.translate(cx, H / 2)
   ctx.rotate((4 * Math.PI) / 180)
@@ -105,7 +100,7 @@ export async function renderShareCard({
 
   // Kolom kiri: logo, judul, tanggal, ajakan.
   const left = 80
-  const textMax = cx - sw / 2 - left - 60
+  const textMax = W - left - sw - 150
   let y = 96
 
   ctx.fillStyle = SHUTTER

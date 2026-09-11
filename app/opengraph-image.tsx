@@ -115,25 +115,10 @@ export default async function OpenGraphImage() {
           </div>
         </div>
 
-        {/* Kamu & dia mengintip dari balik strip, sambil melambai. */}
-        <img
-          alt=""
-          src={svgUri(figureSvg("kamu", "lambai"))}
-          width={190}
-          height={190}
-          style={{ position: "absolute", left: 668, bottom: -6 }}
-        />
-        <img
-          alt=""
-          src={svgUri(figureSvg("dia", "peace"))}
-          width={190}
-          height={190}
-          style={{ position: "absolute", left: 1000, bottom: -6 }}
-        />
         <div
           style={{
             position: "absolute",
-            left: 790,
+            left: 850,
             top: 44,
             display: "flex",
             flexDirection: "column",
