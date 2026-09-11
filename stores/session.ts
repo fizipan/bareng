@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { track } from "@/lib/analytics"
 import { shareOrigin, SITE_HOST } from "@/lib/brand"
 import type { ErrorKind } from "@/lib/content/errors"
 import { randomPrompt } from "@/lib/content/prompts"
@@ -215,7 +216,10 @@ export const useSession = create<Store>()((set, get) => {
     })
     // Sesi selesai: kamera & sambungan video tidak dibutuhkan lagi.
     if (view.screen === "hasil" && useMedia.getState().local) media.stop()
-    if (view.screen === "hasil") publishComposite()
+    if (view.screen === "hasil") {
+      publishComposite()
+      track(s.roomId, "result_viewed", undefined, { once: true })
+    }
     if (event?.by && event.by !== s.participantId) {
       const msg = partnerEventMessage(event, view.partner?.name ?? "Dia", (id) => getTemplate(id).name)
       if (msg) notify(msg)
@@ -706,6 +710,7 @@ export const useSession = create<Store>()((set, get) => {
       try {
         await media.openCamera()
         set({ camera: "granted" })
+        track(get().roomId, "camera_granted", undefined, { once: true })
         recompute()
       } catch (e) {
         const reason = e instanceof CameraError ? e.reason : "unknown"
@@ -719,11 +724,13 @@ export const useSession = create<Store>()((set, get) => {
           return
         }
         set({ camera: "denied", autoCamera: false })
+        track(get().roomId, "camera_denied", { reason }, { once: true })
         recompute()
       }
     },
     denyCamera: () => {
       set({ camera: "denied" })
+      track(get().roomId, "camera_denied", { reason: "ditolak" }, { once: true })
       recompute()
     },
 
@@ -741,6 +748,7 @@ export const useSession = create<Store>()((set, get) => {
       const s = get()
       if (t.tier === "premium" && s.tier !== "premium") {
         set({ paywall: openedPaywall(t.id) })
+        track(s.roomId, "paywall_viewed", { from: s.screen, template: t.id })
         return
       }
       if (s.templateId === t.id) return
@@ -785,10 +793,12 @@ export const useSession = create<Store>()((set, get) => {
       if (!queue.length) return
       set({ selected: [] })
       notify(queue.length > 1 ? `Ulang ${queue.length} foto` : `Ulang foto ${queue[0] + 1}`)
+      track(get().roomId, "retake", { count: queue.length })
       if (get().roomId) guard(() => api.requestRetake(room(), queue))
     },
     retakeAll: () => {
       notify("Ulang semua foto")
+      track(get().roomId, "retake", { count: 4 })
       if (get().roomId) guard(() => api.requestRetake(room(), [0, 1, 2, 3]))
     },
 
@@ -813,6 +823,7 @@ export const useSession = create<Store>()((set, get) => {
       try {
         const { strip } = await buildComposite(renderKeyOf(s))
         await saveImage(strip, `bareng-${s.result.slug}.jpg`, { ios: usePwa.getState().ios, title: "Photostrip kami" })
+        track(s.roomId, "download", { tier: s.tier })
         notify(saved)
       } catch (e) {
         if ((e as DOMException)?.name === "AbortError") return
@@ -824,16 +835,21 @@ export const useSession = create<Store>()((set, get) => {
       if (!slug) return
       const url = resultUrl(slug)
       if (navigator.share) {
-        navigator.share({ title: "Photostrip kami", url }).catch(() => {})
+        navigator
+          .share({ title: "Photostrip kami", url })
+          .then(() => track(get().roomId, "share", { method: "native" }))
+          .catch(() => {})
         return
       }
       copyText(url)
+      track(get().roomId, "share", { method: "copy" })
       notify("Link hasil disalin")
     },
     copyResultLink: () => {
       const slug = get().result?.slug
       if (!slug) return
       copyText(resultUrl(slug))
+      track(get().roomId, "share", { method: "copy" })
       notify("Link hasil disalin")
     },
     deleteResult: async () => {
@@ -846,7 +862,10 @@ export const useSession = create<Store>()((set, get) => {
       notify("Foto dihapus")
     },
 
-    openPaywall: () => set({ paywall: openedPaywall() }),
+    openPaywall: () => {
+      set({ paywall: openedPaywall() })
+      track(get().roomId, "paywall_viewed", { from: get().screen })
+    },
     closePaywall: () => {
       if (get().paywall.step === "memuat") return
       set({ paywall: closedPaywall() })
@@ -985,10 +1004,26 @@ export const useSession = create<Store>()((set, get) => {
   }
 })
 
+// Lama menyambung video (catatan teknis): dari mulai menyambung sampai
+// tersambung pertama kali. Lewat TURN (relay) baru ketahuan dari sampel
+// stats pertama, jadi dicatat sesaat setelah tersambung.
+let linkStartedAt = 0
+function trackLink(roomId: string | null, status: string, prevStatus: string, attempt: number) {
+  if (!roomId || status === prevStatus) return
+  if (status === "connecting" && prevStatus === "idle") linkStartedAt = performance.now()
+  if (status === "connected" && linkStartedAt) {
+    const ms = Math.round(performance.now() - linkStartedAt)
+    linkStartedAt = 0
+    setTimeout(() => track(roomId, "rtc_connected", { ms, relay: useMedia.getState().link.relay }, { once: true }), 3000)
+  }
+  if (status === "failed") track(roomId, "rtc_failed", { attempt }, { once: true })
+}
+
 // Sambungan video berubah (tersambung, lemot, putus) → pill & layar ikut.
 // Kamera mati sendiri (izin dicabut, dipakai aplikasi lain) → minta izin lagi.
 useMedia.subscribe((m, prev) => {
   const session = useSession.getState()
+  trackLink(session.roomId, m.link.status, prev.link.status, prev.link.attempt)
   if (prev.local && !m.local && session.camera === "granted" && session.screen !== "hasil") {
     useSession.setState({ camera: "unknown", autoCamera: false })
   }

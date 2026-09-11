@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation"
+import type { DemoDevice } from "@/app/(kertas)/admin/demo-view"
 import type { FeedbackItem } from "@/app/(kertas)/admin/feedback-list"
+import type { AdminStats } from "@/app/(kertas)/admin/stats-view"
 import type { QueueItem } from "@/app/(kertas)/admin/report-queue"
 import { AdminView, parseAdminParams } from "@/app/(kertas)/admin/admin-view"
 import { ModeRoot } from "@/components/brand/mode-root"
@@ -108,8 +110,31 @@ const FEEDBACK: FeedbackItem[] = [
   },
 ]
 
+const STATS: AdminStats = {
+  days: 7,
+  funnel: { rooms: 64, guest: 51, camera: 47, connected: 45, captured: 38, saved: 29, paywall: 17, paid: 4 },
+  drift: { n: 152, p50: 38, p95: 121, under150: 97 },
+  rtc: { connected: 45, failed: 2, p50_ms: 2300, relay_pct: 9 },
+  payments: { count: 4, total: 60000 },
+  daily: [7, 11, 6, 9, 13, 8, 10].map((rooms, i) => ({
+    day: new Date(NOW - (6 - i) * 86_400_000).toISOString().slice(0, 10),
+    rooms,
+    captured: Math.round(rooms * 0.6),
+  })),
+}
+
+const DEMO: DemoDevice[] = [
+  { user_id: "00000000-0000-0000-0000-00000000000a", label: "iPhone 15 · iOS", created_at: NOW - 3 * 86_400_000, rooms: 12, last_room_at: NOW - 2 * 3_600_000 },
+  { user_id: "00000000-0000-0000-0000-00000000000b", label: "Laptop kantor · macOS", created_at: NOW - 20 * 86_400_000, rooms: 3, last_room_at: null },
+]
+
 async function noop() {
   "use server"
+}
+
+async function noopDemo() {
+  "use server"
+  return { ok: true }
 }
 
 // Pratinjau tampilan /admin dengan data contoh (dev saja).
@@ -122,9 +147,12 @@ export default async function DevAdminPage({ searchParams }: PageProps<"/dev/adm
         base="/dev/admin"
         queue={SAMPLE}
         feedback={FEEDBACK}
+        stats={STATS}
+        demo={DEMO}
+        deviceLabel="Chrome · macOS"
         error={null}
         now={NOW}
-        actions={{ resolveReport: noop, resolveFeedback: noop, logout: noop }}
+        actions={{ resolveReport: noop, resolveFeedback: noop, logout: noop, enableDemo: noopDemo, revokeDemo: noop }}
       />
     </ModeRoot>
   )

@@ -25,7 +25,7 @@ const PROMISES = [
 const KEPT = [
   "Photostrip jadi, beserta foto per frame dari sesi kalian",
   "Nama panggilan yang kalian ketik",
-  "Catatan teknis: kapan room dibuat dan berapa lama tersambung",
+  "Catatan teknis tanpa data pribadi: kapan room dibuat, berapa lama video tersambung, dan langkah yang dipakai (mis. unduh atau bagikan)",
   "Isi masukan yang kamu kirim lewat Pusat bantuan, beserta jenis browser & HP-mu (dan email kalau kamu isi)",
 ]
 const NOT_KEPT = ["Rekaman video atau suara", "Isi obrolan kalian", "Nomor HP dan email"]

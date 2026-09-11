@@ -2,14 +2,14 @@
 
 import { useState } from "react"
 import { useFormStatus } from "react-dom"
-import { EyeOffIcon, LogOutIcon, ShieldCheckIcon, type LucideIcon } from "lucide-react"
+import { EyeOffIcon, LogOutIcon, ShieldCheckIcon, UnplugIcon, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 type Variant = "primary" | "secondary" | "ghost"
 
 // Ikon lewat kunci teks: komponen tidak bisa dikirim dari server component.
-const ICONS = { turunkan: EyeOffIcon, abaikan: ShieldCheckIcon, keluar: LogOutIcon } satisfies Record<string, LucideIcon>
+const ICONS = { turunkan: EyeOffIcon, abaikan: ShieldCheckIcon, keluar: LogOutIcon, cabut: UnplugIcon } satisfies Record<string, LucideIcon>
 
 // Tombol aksi admin dengan modal konfirmasi. Form (dengan field tersembunyi)
 // ada di dalam modal; modal tetap terbuka sampai server action selesai.

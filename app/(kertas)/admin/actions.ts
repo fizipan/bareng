@@ -41,3 +41,26 @@ export async function resolveReport(form: FormData) {
   await sb.rpc("admin_resolve", { p_slug: slug, p_takedown: form.get("takedown") === "1" })
   revalidatePath("/admin")
 }
+
+// Perangkat demo: sesi anonim browser ini (token dari komponen klien)
+// didaftarkan → room buatannya premium, tanpa batas harian.
+export async function enableDemoDevice(token: string, label: string) {
+  if (!(await isAdmin())) redirect("/admin")
+  const sb = supabaseAdmin()
+  if (!sb || typeof token !== "string" || !token) return { ok: false }
+  const { data } = await sb.auth.getUser(token)
+  if (!data.user) return { ok: false }
+  const { error } = await sb.rpc("admin_demo_set", { p_user: data.user.id, p_label: String(label ?? "").slice(0, 80), p_on: true })
+  revalidatePath("/admin")
+  return { ok: !error }
+}
+
+export async function revokeDemoDevice(form: FormData) {
+  if (!(await isAdmin())) redirect("/admin")
+  const id = String(form.get("user") ?? "")
+  if (!/^[0-9a-f-]{36}$/.test(id)) return
+  const sb = supabaseAdmin()
+  if (!sb) return
+  await sb.rpc("admin_demo_set", { p_user: id, p_label: "", p_on: false })
+  revalidatePath("/admin")
+}

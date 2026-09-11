@@ -1,27 +1,49 @@
 import Link from "next/link"
-import { FlagIcon, MessageSquareIcon } from "lucide-react"
+import { ChartNoAxesColumnIcon, FlagIcon, MessageSquareIcon, PresentationIcon } from "lucide-react"
 import { Logo } from "@/components/brand/logo"
 import { FEEDBACK_KINDS, feedbackLabel } from "@/lib/content/feedback"
 import { cn } from "@/lib/utils"
 import { ConfirmAction } from "./confirm-action"
+import { DemoView, type DemoDevice } from "./demo-view"
 import { FeedbackList, KIND_STYLE, type FeedbackItem } from "./feedback-list"
 import { HistoryList, needsReview, ReviewList, type QueueItem } from "./report-queue"
+import { StatsView, type AdminStats } from "./stats-view"
 
-export type AdminParams = { view: "laporan" | "masukan"; status: "aktif" | "selesai"; kind: string | null }
+const VIEWS = ["laporan", "masukan", "statistik", "demo"] as const
+const PERIODS = [7, 30, 90] as const
+
+export type AdminParams = {
+  view: (typeof VIEWS)[number]
+  status: "aktif" | "selesai"
+  kind: string | null
+  days: (typeof PERIODS)[number]
+}
 
 type Actions = {
   resolveReport: (form: FormData) => Promise<void>
   resolveFeedback: (form: FormData) => Promise<void>
   logout: (form: FormData) => Promise<void>
+  enableDemo: (token: string, label: string) => Promise<{ ok: boolean }>
+  revokeDemo: (form: FormData) => Promise<void>
+}
+
+const HEADER: Record<AdminParams["view"], [string, string]> = {
+  laporan: ["Laporan photostrip", "Photostrip yang dilaporkan pengunjung halaman publik."],
+  masukan: ["Masukan & bug", "Kiriman dari Pusat bantuan & tombol bantuan melayang."],
+  statistik: ["Statistik", "Catatan teknis dari sesi sungguhan, tanpa data pribadi."],
+  demo: ["Perangkat demo", "Foto tanpa batas dan langsung premium, untuk kamu pakai sendiri atau demo ke customer."],
 }
 
 export function parseAdminParams(sp: Record<string, string | string[] | undefined>): AdminParams {
   const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : null)
   const kind = one(sp.jenis)
+  const view = VIEWS.find((v) => v === one(sp.view)) ?? "laporan"
+  const days = PERIODS.find((d) => String(d) === one(sp.hari)) ?? 7
   return {
-    view: one(sp.view) === "masukan" ? "masukan" : "laporan",
+    view,
     status: one(sp.status) === "selesai" ? "selesai" : "aktif",
     kind: FEEDBACK_KINDS.some((k) => k.id === kind) ? kind : null,
+    days,
   }
 }
 
@@ -33,6 +55,9 @@ export function AdminView({
   base,
   queue,
   feedback,
+  stats,
+  demo,
+  deviceLabel,
   error,
   now,
   actions,
@@ -41,6 +66,9 @@ export function AdminView({
   base: string
   queue: QueueItem[]
   feedback: FeedbackItem[]
+  stats: AdminStats | null
+  demo: DemoDevice[]
+  deviceLabel: string
   error: string | null
   now: number
   actions: Actions
@@ -48,9 +76,10 @@ export function AdminView({
   const href = (p: Partial<AdminParams>) => {
     const next = { ...params, ...p }
     const q = new URLSearchParams()
-    if (next.view === "masukan") q.set("view", "masukan")
-    if (next.status === "selesai") q.set("status", "selesai")
+    if (next.view !== "laporan") q.set("view", next.view)
+    if (next.status === "selesai" && (next.view === "laporan" || next.view === "masukan")) q.set("status", "selesai")
     if (next.view === "masukan" && next.kind) q.set("jenis", next.kind)
+    if (next.view === "statistik" && next.days !== 7) q.set("hari", String(next.days))
     const s = q.toString()
     return s ? `${base}?${s}` : base
   }
@@ -62,9 +91,12 @@ export function AdminView({
   const sections = [
     { key: "laporan", label: "Laporan", icon: FlagIcon, count: reportsOpen.length },
     { key: "masukan", label: "Masukan", icon: MessageSquareIcon, count: feedbackOpen.length },
+    { key: "statistik", label: "Statistik", icon: ChartNoAxesColumnIcon, count: 0 },
+    { key: "demo", label: "Demo", icon: PresentationIcon, count: 0 },
   ] as const
 
   const isReports = params.view === "laporan"
+  const isInbox = params.view === "laporan" || params.view === "masukan"
   const openCount = isReports ? reportsOpen.length : feedbackOpen.length
   const doneCount = isReports ? reportsDone.length : feedbackDone.length
   const feedbackInStatus = params.status === "selesai" ? feedbackDone : feedbackOpen
@@ -124,21 +156,23 @@ export function AdminView({
             </div>
             {logout}
           </div>
-          <nav aria-label="Bagian admin" className="grid grid-cols-2 rounded-full bg-card p-1">
+          <nav aria-label="Bagian admin" className="grid grid-cols-4 gap-1 rounded-md bg-card p-1">
             {sections.map(({ key, label, icon: Icon, count }) => (
               <Link
                 key={key}
                 href={href({ view: key, status: "aktif", kind: null })}
                 aria-current={params.view === key ? "page" : undefined}
                 className={cn(
-                  "inline-flex min-h-10 items-center justify-center gap-2 rounded-full text-small font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                  "relative flex min-h-13 flex-col items-center justify-center gap-0.5 rounded-sm text-caption font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
                   params.view === key ? "bg-background text-foreground shadow-[0_1px_3px_rgb(22_20_29/0.1)]" : "text-muted-foreground"
                 )}
               >
-                <Icon aria-hidden className="size-4" />
+                <Icon aria-hidden className="size-[18px]" />
                 {label}
                 {count > 0 && (
-                  <span className="min-w-5 rounded-full bg-shutter px-1.5 text-center text-caption text-kertas tabular-nums">{count}</span>
+                  <span className="absolute top-1 right-1.5 min-w-4.5 rounded-full bg-shutter px-1 text-center text-[10px] leading-4 text-kertas tabular-nums">
+                    {count}
+                  </span>
                 )}
               </Link>
             ))}
@@ -146,45 +180,61 @@ export function AdminView({
         </div>
 
         <header className="flex flex-col gap-1">
-          <h1 className="font-display text-display-sm font-bold lg:text-display-md">{isReports ? "Laporan photostrip" : "Masukan & bug"}</h1>
-          <p className="text-small text-muted-foreground">
-            {isReports
-              ? "Photostrip yang dilaporkan pengunjung halaman publik."
-              : "Kiriman dari Pusat bantuan & tombol bantuan melayang."}
-          </p>
+          <h1 className="font-display text-display-sm font-bold lg:text-display-md">{HEADER[params.view][0]}</h1>
+          <p className="text-small text-muted-foreground">{HEADER[params.view][1]}</p>
         </header>
 
         {/* Tab status bergaris bawah (beda gaya dari navigasi bagian). */}
-        <nav aria-label="Status" className="flex gap-6 border-b-[1.5px] border-line">
-          {(
-            [
-              ["aktif", isReports ? "Perlu ditinjau" : "Belum selesai", openCount],
-              ["selesai", "Selesai", doneCount],
-            ] as const
-          ).map(([key, label, n]) => (
-            <Link
-              key={key}
-              href={href({ status: key })}
-              aria-current={params.status === key ? "page" : undefined}
-              className={cn(
-                "-mb-[1.5px] inline-flex min-h-11 items-center gap-2 border-b-2 text-small font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-                params.status === key ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {label}
-              <span
+        {isInbox && (
+          <nav aria-label="Status" className="flex gap-6 border-b-[1.5px] border-line">
+            {(
+              [
+                ["aktif", isReports ? "Perlu ditinjau" : "Belum selesai", openCount],
+                ["selesai", "Selesai", doneCount],
+              ] as const
+            ).map(([key, label, n]) => (
+              <Link
+                key={key}
+                href={href({ status: key })}
+                aria-current={params.status === key ? "page" : undefined}
                 className={cn(
-                  "min-w-5 rounded-full px-1.5 text-center text-caption tabular-nums",
-                  key === "aktif" && n > 0 ? "bg-shutter/12 text-shutter" : "bg-card text-soft-foreground"
+                  "-mb-[1.5px] inline-flex min-h-11 items-center gap-2 border-b-2 text-small font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                  params.status === key ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
                 )}
               >
-                {n}
-              </span>
-            </Link>
-          ))}
-        </nav>
+                {label}
+                <span
+                  className={cn(
+                    "min-w-5 rounded-full px-1.5 text-center text-caption tabular-nums",
+                    key === "aktif" && n > 0 ? "bg-shutter/12 text-shutter" : "bg-card text-soft-foreground"
+                  )}
+                >
+                  {n}
+                </span>
+              </Link>
+            ))}
+          </nav>
+        )}
 
-        {!isReports && (
+        {params.view === "statistik" && (
+          <nav aria-label="Rentang waktu" className="flex flex-wrap gap-2">
+            {PERIODS.map((d) => (
+              <Link
+                key={d}
+                href={href({ days: d })}
+                aria-current={params.days === d ? "true" : undefined}
+                className={cn(
+                  "inline-flex min-h-9 items-center rounded-full border-[1.5px] px-3.5 text-caption font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                  params.days === d ? "border-foreground bg-foreground text-background" : "border-line text-soft-foreground hover:border-line-strong"
+                )}
+              >
+                {d} hari
+              </Link>
+            ))}
+          </nav>
+        )}
+
+        {params.view === "masukan" && (
           <div className="-mt-2 flex flex-wrap gap-2">
             {[null, ...FEEDBACK_KINDS.map((k) => k.id)].map((id) => {
               const n = id ? feedbackInStatus.filter((f) => f.kind === id).length : feedbackInStatus.length
@@ -212,6 +262,10 @@ export function AdminView({
 
         {error ? (
           <p className="rounded-md bg-shutter/10 px-4 py-3 text-small text-shutter">Gagal memuat data: {error}</p>
+        ) : params.view === "statistik" ? (
+          stats && <StatsView stats={stats} />
+        ) : params.view === "demo" ? (
+          <DemoView devices={demo} defaultLabel={deviceLabel} now={now} enable={actions.enableDemo} revoke={actions.revokeDemo} />
         ) : isReports ? (
           params.status === "selesai" ? (
             <HistoryList items={reportsDone} now={now} />

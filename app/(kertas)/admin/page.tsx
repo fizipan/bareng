@@ -1,15 +1,19 @@
 import type { Metadata } from "next"
+import { headers } from "next/headers"
 import Link from "next/link"
 import { ArrowLeftIcon, SettingsIcon, ShieldCheckIcon } from "lucide-react"
 import { Logo } from "@/components/brand/logo"
 import { adminConfigured, isAdmin } from "@/lib/admin/auth"
 import { supabaseAdmin } from "@/lib/admin/supabase-admin"
+import { parseUserAgent } from "@/lib/device-info"
 import { cn } from "@/lib/utils"
-import { login, logout, resolveFeedback, resolveReport } from "./actions"
+import { enableDemoDevice, login, logout, resolveFeedback, resolveReport, revokeDemoDevice } from "./actions"
 import { AdminView, parseAdminParams } from "./admin-view"
+import type { DemoDevice } from "./demo-view"
 import type { FeedbackItem } from "./feedback-list"
 import { LoginForm } from "./login-form"
 import type { QueueItem } from "./report-queue"
+import type { AdminStats } from "./stats-view"
 
 export const metadata: Metadata = { title: "Admin", robots: { index: false, follow: false } }
 
@@ -54,8 +58,17 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
 
   const sb = supabaseAdmin()!
   const params = parseAdminParams(sp)
-  const [reports, feedback] = await Promise.all([sb.rpc("admin_report_queue"), sb.rpc("admin_feedback_list")])
-  const error = (params.view === "masukan" ? feedback.error : reports.error)?.message ?? null
+  const [reports, feedback, stats, demo] = await Promise.all([
+    sb.rpc("admin_report_queue"),
+    sb.rpc("admin_feedback_list"),
+    params.view === "statistik" ? sb.rpc("admin_stats", { p_days: params.days }) : null,
+    params.view === "demo" ? sb.rpc("admin_demo_devices") : null,
+  ])
+  const viewError = { laporan: reports.error, masukan: feedback.error, statistik: stats?.error, demo: demo?.error }[params.view]
+  const error = viewError?.message ?? null
+  // Nama bawaan perangkat demo, dari browser yang membuka halaman ini.
+  const ua = parseUserAgent((await headers()).get("user-agent") ?? "")
+  const deviceLabel = [ua.model ?? ua.browser, ua.os].filter((x) => x && x !== "Tidak diketahui").join(" · ") || "Perangkat demo"
 
   return (
     <AdminView
@@ -63,9 +76,12 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
       base="/admin"
       queue={(reports.data as QueueItem[] | null) ?? []}
       feedback={(feedback.data as FeedbackItem[] | null) ?? []}
+      stats={(stats?.data as AdminStats | null) ?? null}
+      demo={(demo?.data as DemoDevice[] | null) ?? []}
+      deviceLabel={deviceLabel}
       error={error}
       now={requestTime()}
-      actions={{ resolveReport, resolveFeedback, logout }}
+      actions={{ resolveReport, resolveFeedback, logout, enableDemo: enableDemoDevice, revokeDemo: revokeDemoDevice }}
     />
   )
 }
