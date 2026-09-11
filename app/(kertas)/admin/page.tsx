@@ -1,12 +1,12 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { LogOutIcon } from "lucide-react"
 import { Logo } from "@/components/brand/logo"
 import { Button } from "@/components/ui/button"
 import { adminConfigured, isAdmin } from "@/lib/admin/auth"
 import { supabaseAdmin } from "@/lib/admin/supabase-admin"
 import { cn } from "@/lib/utils"
 import { login, logout, resolveReport } from "./actions"
+import { ConfirmAction } from "./confirm-action"
 import { AdminQueue, type AdminTab, type QueueItem } from "./report-queue"
 
 export const metadata: Metadata = { title: "Admin", robots: { index: false, follow: false } }
@@ -87,12 +87,15 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
             {waiting ? `${waiting} photostrip menunggu ditinjau` : "Tidak ada yang perlu ditinjau"}
           </p>
         </div>
-        <form action={logout}>
-          <Button variant="ghost" size="sm" type="submit">
-            <LogOutIcon data-icon="inline-start" />
-            Keluar
-          </Button>
-        </form>
+        <ConfirmAction
+          action={logout}
+          icon="keluar"
+          label="Keluar"
+          variant="ghost"
+          title="Keluar dari admin?"
+          description="Untuk masuk lagi, kamu perlu memasukkan password admin."
+          confirmLabel="Keluar"
+        />
       </div>
 
       {error ? (

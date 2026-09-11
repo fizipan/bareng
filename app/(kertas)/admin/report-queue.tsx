@@ -1,10 +1,9 @@
 import Link from "next/link"
 import { ArrowUpRightIcon, EyeOffIcon, FlagIcon, ShieldCheckIcon } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { reasonLabel } from "@/lib/content/report-reasons"
 import { publicResultUrl } from "@/lib/results-url"
 import { cn } from "@/lib/utils"
-import { ConfirmButton } from "./confirm-button"
+import { ConfirmAction } from "./confirm-action"
 
 export type QueueItem = {
   slug: string
@@ -179,20 +178,32 @@ function ReviewCard({ q, now, action }: { q: QueueItem; now: number; action: (fo
           <FlagIcon aria-hidden className="size-3.5" />
           {q.reports} laporan · terakhir {ago(q.last_report, now)}
         </span>
-        <form action={action} className="flex flex-wrap gap-2">
-          <input type="hidden" name="slug" value={q.slug} />
-          <ConfirmButton
-            name="takedown"
-            value="1"
-            size="sm"
-            message="Turunkan photostrip ini? Link-nya mati untuk semua orang dan tidak bisa dibatalkan."
-          >
-            Turunkan
-          </ConfirmButton>
-          <Button variant="secondary" size="sm" type="submit" name="takedown" value="0">
-            Abaikan
-          </Button>
-        </form>
+        <div className="flex flex-wrap gap-2">
+          <ConfirmAction
+            action={action}
+            fields={{ slug: q.slug, takedown: "1" }}
+            icon="turunkan"
+            label="Turunkan"
+            variant="primary"
+            title="Turunkan photostrip ini?"
+            description={
+              <>
+                Link <span className="font-mono">/p/{q.slug}</span> langsung mati untuk semua orang, termasuk mereka
+                berdua. Tidak bisa dibatalkan.
+              </>
+            }
+            confirmLabel="Ya, turunkan"
+          />
+          <ConfirmAction
+            action={action}
+            fields={{ slug: q.slug, takedown: "0" }}
+            icon="abaikan"
+            label="Abaikan"
+            title="Abaikan laporan ini?"
+            description="Photostrip tetap bisa dilihat. Laporannya pindah ke tab Selesai sebagai diabaikan."
+            confirmLabel="Ya, abaikan"
+          />
+        </div>
       </div>
     </li>
   )
