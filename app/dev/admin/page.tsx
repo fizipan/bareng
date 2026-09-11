@@ -112,6 +112,8 @@ const FEEDBACK: FeedbackItem[] = [
 
 const STATS: AdminStats = {
   days: 7,
+  generated_at: NOW,
+  prev: { rooms: 52, guest: 40, connected: 34, captured: 31, paid_total: 45000 },
   funnel: { rooms: 64, guest: 51, camera: 47, connected: 45, captured: 38, saved: 29, paywall: 17, paid: 4 },
   drift: { n: 152, p50: 38, p95: 121, under150: 97 },
   rtc: { connected: 45, failed: 2, p50_ms: 2300, relay_pct: 9 },

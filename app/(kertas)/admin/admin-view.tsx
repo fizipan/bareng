@@ -217,21 +217,31 @@ export function AdminView({
         )}
 
         {params.view === "statistik" && (
-          <nav aria-label="Rentang waktu" className="flex flex-wrap gap-2">
-            {PERIODS.map((d) => (
-              <Link
-                key={d}
-                href={href({ days: d })}
-                aria-current={params.days === d ? "true" : undefined}
-                className={cn(
-                  "inline-flex min-h-9 items-center rounded-full border-[1.5px] px-3.5 text-caption font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-                  params.days === d ? "border-foreground bg-foreground text-background" : "border-line text-soft-foreground hover:border-line-strong"
-                )}
-              >
-                {d} hari
-              </Link>
-            ))}
-          </nav>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <nav aria-label="Rentang waktu" className="inline-flex rounded-full bg-card p-1">
+              {PERIODS.map((d) => (
+                <Link
+                  key={d}
+                  href={href({ days: d })}
+                  aria-current={params.days === d ? "true" : undefined}
+                  className={cn(
+                    "inline-flex min-h-10 items-center rounded-full px-4 text-caption font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                    params.days === d
+                      ? "bg-background text-foreground shadow-[0_1px_3px_rgb(22_20_29/0.1)]"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {d} hari
+                </Link>
+              ))}
+            </nav>
+            {stats && (
+              <span className="text-caption text-muted-foreground">
+                Diperbarui{" "}
+                {new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }).format(stats.generated_at)} WIB
+              </span>
+            )}
+          </div>
         )}
 
         {params.view === "masukan" && (
