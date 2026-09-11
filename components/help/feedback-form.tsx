@@ -193,7 +193,7 @@ export function FeedbackForm({
           {sending ? "Mengirim…" : "Kirim"}
         </Button>
         <p className="text-center text-caption text-muted-foreground">
-          Kami ikut mengirim info teknis (jenis browser & perangkat) supaya masalahnya gampang dicek.
+          Kami ikut mengirim info teknis (browser, perangkat, layar, izin kamera & mikrofon, tanpa lokasi) supaya masalahnya gampang dicek.
         </p>
       </div>
     </form>
