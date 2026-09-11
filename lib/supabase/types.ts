@@ -223,6 +223,19 @@ export type Database = {
       mock_upgrade: { Args: { p_room: string }; Returns: undefined }
       file_report: { Args: { p_note?: string; p_reason?: string; p_slug: string }; Returns: Json }
       admin_report_queue: { Args: never; Returns: Json }
+      admin_feedback_list: { Args: never; Returns: Json }
+      admin_feedback_resolve: { Args: { p_id: string; p_resolved: boolean }; Returns: undefined }
+      submit_feedback: {
+        Args: {
+          p_email?: string
+          p_kind: string
+          p_message: string
+          p_page?: string
+          p_room_code?: string
+          p_user_agent?: string
+        }
+        Returns: Json
+      }
       admin_resolve: { Args: { p_slug: string; p_takedown: boolean }; Returns: undefined }
       request_retake: { Args: { p_indices: number[]; p_room: string }; Returns: undefined }
       resume_shot: {

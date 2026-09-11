@@ -622,6 +622,26 @@ html:has(main[data-screen="lobby"]) [data-sonner-toaster][data-y-position="botto
   }
 }
 
+/* Tombol bantuan melayang: naik di atas bar yang menempel di bawah & ajakan
+   pasang aplikasi, disembunyikan di layar capture (tombol shutter). */
+html:has(main[data-screen="capture"]) [data-help-fab] {
+  display: none;
+}
+html:has(main[data-screen="lobby"]) [data-help-fab] {
+  bottom: calc(172px + env(safe-area-inset-bottom));
+}
+html:has(aside[aria-label="Pasang aplikasi"]) [data-help-fab] {
+  bottom: calc(92px + env(safe-area-inset-bottom));
+}
+@media (max-width: 767px) {
+  html:has(main[data-screen="review"]) [data-help-fab] {
+    bottom: calc(196px + env(safe-area-inset-bottom));
+  }
+  html:has(main[data-screen="hasil"]) [data-help-fab] {
+    bottom: calc(168px + env(safe-area-inset-bottom));
+  }
+}
+
 /* Ilustrasi landing di luar layar: animasi dijeda supaya hemat baterai. */
 [data-art]:not([data-live]),
 [data-art]:not([data-live]) * {

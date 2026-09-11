@@ -7,6 +7,7 @@ import { LegalToc, type TocItem } from "./legal-toc"
 const PAGES = [
   { key: "privasi", label: "Privasi", href: "/privasi" },
   { key: "ketentuan", label: "Ketentuan", href: "/ketentuan" },
+  { key: "bantuan", label: "Bantuan", href: "/bantuan" },
 ] as const
 
 // Kerangka halaman Privasi & Ketentuan. Responsif lewat container query supaya
@@ -50,7 +51,7 @@ export function LegalLayout({
                 href={p.href}
                 aria-current={p.key === page ? "page" : undefined}
                 className={cn(
-                  "inline-flex min-h-9 items-center rounded-full px-4 text-small font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                  "inline-flex min-h-9 items-center rounded-full px-3 text-small font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 @sm:px-4",
                   p.key === page
                     ? "bg-background text-foreground shadow-[0_1px_3px_rgb(22_20_29/0.1)]"
                     : "text-muted-foreground hover:text-foreground"

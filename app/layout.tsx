@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { Bricolage_Grotesque, Inter } from "next/font/google"
 import { PwaProvider } from "@/components/pwa/pwa-provider"
+import { HelpFab } from "@/components/help/help-fab"
 import { Toaster } from "@/components/ui/sonner"
 import { BRAND, SITE_URL } from "@/lib/brand"
 import { APPLE_STARTUP_IMAGES } from "@/lib/pwa"
@@ -52,6 +53,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         <Toaster />
         <PwaProvider />
+        <HelpFab />
       </body>
     </html>
   )

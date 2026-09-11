@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
-import { FigureFill } from "./figure"
+import { Figure, FigureFill } from "./figure"
 import { liveProps, useInView, useReducedMotion } from "./motion"
 
 // Privasi: photostrip kalian di dalam amplop bersegel hati. Ketuk (atau hover)
@@ -122,6 +122,36 @@ export function BoothTicket({ className }: { className?: string }) {
             </g>
           </g>
         </svg>
+      </span>
+    </span>
+  )
+}
+
+// Bantuan: kamu melambai dengan gelembung "?" — ketuk = gelembungnya meloncat.
+export function HelpBubble({ className }: { className?: string }) {
+  const reduced = useReducedMotion()
+  const [ref, inView] = useInView<HTMLSpanElement>(0.1)
+  const [bounce, setBounce] = useState(0)
+
+  return (
+    <span
+      ref={ref}
+      aria-hidden
+      {...liveProps(inView)}
+      onPointerDown={() => !reduced && setBounce((n) => n + 1)}
+      className={cn("relative block aspect-square w-full cursor-pointer select-none", className)}
+    >
+      <span className="absolute inset-x-[8%] bottom-0 animate-float">
+        <Figure who="kamu" pose="lambai" className="h-auto w-full" />
+      </span>
+      <span
+        key={bounce}
+        className={cn(
+          "absolute top-[2%] right-0 grid size-[42%] place-items-center rounded-full rounded-bl-[6px] bg-darkroom font-display text-[clamp(18px,4cqw,34px)] font-extrabold text-flash shadow-[0_8px_16px_rgb(22_20_29/0.18)]",
+          bounce > 0 && "animate-pop"
+        )}
+      >
+        ?
       </span>
     </span>
   )

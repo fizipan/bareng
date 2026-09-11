@@ -5,8 +5,9 @@ import { Logo } from "@/components/brand/logo"
 import { adminConfigured, isAdmin } from "@/lib/admin/auth"
 import { supabaseAdmin } from "@/lib/admin/supabase-admin"
 import { cn } from "@/lib/utils"
-import { login, logout, resolveReport } from "./actions"
+import { login, logout, resolveFeedback, resolveReport } from "./actions"
 import { ConfirmAction } from "./confirm-action"
+import { FeedbackList, type FeedbackItem } from "./feedback-list"
 import { LoginForm } from "./login-form"
 import { AdminQueue, type AdminTab, type QueueItem } from "./report-queue"
 
@@ -18,8 +19,9 @@ const requestTime = () => Date.now()
 // Halaman admin: antrean laporan photostrip. Masuk dengan ADMIN_PASSWORD;
 // data dibaca server dengan kunci service_role.
 export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
-  const { e, tab } = await searchParams
+  const { e, tab, view: rawView } = await searchParams
   const active: AdminTab = tab === "selesai" ? "selesai" : "tinjau"
+  const view = rawView === "masukan" ? "masukan" : "laporan"
   const shell = (children: React.ReactNode) => (
     <main className="mx-auto flex w-full max-w-[720px] flex-1 flex-col gap-6 px-5 pt-4 pb-12">
       <header className="flex items-center justify-between gap-3">
@@ -62,19 +64,39 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
     )
   }
 
-  const { data, error } = await supabaseAdmin()!.rpc("admin_report_queue")
-  const queue = (data as QueueItem[] | null) ?? []
+  const sb = supabaseAdmin()!
+  const [reports, feedbackRes] = await Promise.all([sb.rpc("admin_report_queue"), sb.rpc("admin_feedback_list")])
+  const queue = (reports.data as QueueItem[] | null) ?? []
+  const feedback = (feedbackRes.data as FeedbackItem[] | null) ?? []
   const waiting = queue.filter((q) => q.pending > 0 && !q.removed).length
+  const openFeedback = feedback.filter((f) => !f.resolved).length
+  const error = view === "masukan" ? feedbackRes.error : reports.error
+  const now = requestTime()
 
   return shell(
     <>
-      <div className="flex items-end justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="font-display text-display-sm font-bold">Laporan</h1>
-          <p className="text-small text-muted-foreground">
-            {waiting ? `${waiting} photostrip menunggu ditinjau` : "Tidak ada yang perlu ditinjau"}
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-3">
+        <nav aria-label="Bagian admin" className="flex rounded-full bg-card p-1">
+          {(
+            [
+              ["laporan", "Laporan", waiting, "/admin"],
+              ["masukan", "Masukan", openFeedback, "/admin?view=masukan"],
+            ] as const
+          ).map(([key, label, n, href]) => (
+            <Link
+              key={key}
+              href={href}
+              aria-current={view === key ? "page" : undefined}
+              className={cn(
+                "inline-flex min-h-9 items-center gap-2 rounded-full px-4 text-small font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                view === key ? "bg-background text-foreground shadow-[0_1px_3px_rgb(22_20_29/0.1)]" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {label}
+              {n > 0 && <span className="min-w-5 rounded-full bg-shutter px-1.5 text-center text-caption text-kertas tabular-nums">{n}</span>}
+            </Link>
+          ))}
+        </nav>
         <ConfirmAction
           action={logout}
           icon="keluar"
@@ -86,14 +108,29 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
         />
       </div>
 
+      <div className="flex flex-col gap-1">
+        <h1 className="font-display text-display-sm font-bold">{view === "masukan" ? "Masukan" : "Laporan"}</h1>
+        <p className="text-small text-muted-foreground">
+          {view === "masukan"
+            ? openFeedback
+              ? `${openFeedback} kiriman belum selesai`
+              : "Semua kiriman sudah ditangani"
+            : waiting
+              ? `${waiting} photostrip menunggu ditinjau`
+              : "Tidak ada yang perlu ditinjau"}
+        </p>
+      </div>
+
       {error ? (
-        <p className="rounded-md bg-shutter/10 px-4 py-3 text-small text-shutter">Gagal memuat laporan: {error.message}</p>
+        <p className="rounded-md bg-shutter/10 px-4 py-3 text-small text-shutter">Gagal memuat data: {error.message}</p>
+      ) : view === "masukan" ? (
+        <FeedbackList items={feedback} action={resolveFeedback} now={now} />
       ) : (
         <AdminQueue
           queue={queue}
           tab={active}
           action={resolveReport}
-          now={requestTime()}
+          now={now}
           hrefFor={(t) => (t === "tinjau" ? "/admin" : "/admin?tab=selesai")}
         />
       )}

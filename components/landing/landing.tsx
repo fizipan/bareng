@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { CheckIcon } from "lucide-react"
+import { ArrowRightIcon, CheckIcon, KeyRoundIcon } from "lucide-react"
 import { Logo, LogoMark, Wordmark } from "@/components/brand/logo"
 import { Strip } from "@/components/strip/strip"
 import { BRAND, SUPPORT_EMAIL } from "@/lib/brand"
@@ -47,17 +47,20 @@ export function Landing() {
               <StartButton />
               <Link
                 href="/gabung"
-                className="flex h-15 items-center gap-3.5 rounded-md border-[1.5px] border-outline-subtle bg-sunken px-[18px] text-body font-semibold outline-none transition-colors hover:border-outline focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="group flex h-16 items-center gap-3.5 rounded-md border-[1.5px] border-outline bg-sunken pr-3 pl-[18px] text-body font-semibold shadow-[0_2px_0_rgb(22_20_29/0.06)] outline-none transition-[border-color,background-color,transform] duration-150 hover:bg-card focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.98]"
               >
-                <span aria-hidden className="grid size-[34px] shrink-0 grid-cols-[6px_6px] content-center justify-center gap-1 rounded-full bg-card">
-                  <span className="size-1.5 rounded-[1.5px] bg-darkroom" />
-                  <span className="size-1.5 rounded-[1.5px] bg-darkroom" />
-                  <span className="size-1.5 rounded-[1.5px] bg-darkroom" />
-                  <span className="size-1.5 rounded-[1.5px] bg-shutter" />
+                <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-card text-foreground group-hover:bg-background">
+                  <KeyRoundIcon className="size-[18px]" />
                 </span>
-                <span className="flex flex-col gap-0.5">
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span>Punya kode dari dia?</span>
-                  <span className="text-caption font-normal text-muted-foreground">Gabung ke room-nya</span>
+                  <span className="text-caption font-normal text-muted-foreground">Masukkan kodenya buat gabung</span>
+                </span>
+                <span
+                  aria-hidden
+                  className="flex size-9 shrink-0 items-center justify-center rounded-full bg-darkroom text-kertas transition-transform duration-200 group-hover:translate-x-0.5"
+                >
+                  <ArrowRightIcon className="size-[18px]" strokeWidth={2.5} />
                 </span>
               </Link>
             </div>
@@ -267,6 +270,7 @@ const FOOTER_LINKS = [
     title: "Bantuan",
     links: [
       { label: "Pertanyaan umum", href: "#faq" },
+      { label: "Pusat bantuan", href: "/bantuan" },
       { label: SUPPORT_EMAIL, href: `mailto:${SUPPORT_EMAIL}` },
     ],
   },

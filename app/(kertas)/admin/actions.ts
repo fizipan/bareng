@@ -20,6 +20,17 @@ export async function logout() {
   redirect("/admin")
 }
 
+// Kiriman Pusat bantuan: tandai selesai / buka lagi.
+export async function resolveFeedback(form: FormData) {
+  if (!(await isAdmin())) redirect("/admin")
+  const id = String(form.get("id") ?? "")
+  if (!/^[0-9a-f-]{36}$/.test(id)) return
+  const sb = supabaseAdmin()
+  if (!sb) return
+  await sb.rpc("admin_feedback_resolve", { p_id: id, p_resolved: form.get("resolved") === "1" })
+  revalidatePath("/admin")
+}
+
 // Tandai laporan photostrip ini sudah ditinjau; "turunkan" = hapus juga.
 export async function resolveReport(form: FormData) {
   if (!(await isAdmin())) redirect("/admin")
