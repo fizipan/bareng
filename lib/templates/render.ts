@@ -1,7 +1,8 @@
 "use client"
 
 import { applyColorOps, parseCssFilter } from "./color-filter"
-import { fillTokens, type StripOverlay, type StripTemplate, type StripText, type StripTokens } from "./schema"
+import type { StripOverlay, StripTemplate, StripText } from "./schema"
+import { fillTokens, type StripTokens } from "./tokens"
 
 // Renderer Canvas 2D dari template JSON yang sama dengan preview DOM
 // (components/strip/strip.tsx), jadi hasil PNG/JPEG = yang terlihat di layar.

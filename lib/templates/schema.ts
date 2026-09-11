@@ -84,8 +84,4 @@ export type StripText = z.infer<typeof stripTextSchema>
 export type StripTemplate = z.infer<typeof stripTemplateSchema>
 export type TemplateTier = StripTemplate["tier"]
 
-export type StripTokens = { date: string; host: string }
-
-export function fillTokens(value: string, tokens: StripTokens) {
-  return value.replace(/\{\{(date|host)\}\}/g, (_, key: keyof StripTokens) => tokens[key])
-}
+export { fillTokens, type StripTokens } from "./tokens"

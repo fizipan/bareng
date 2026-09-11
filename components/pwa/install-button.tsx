@@ -1,35 +1,12 @@
 "use client"
 
 import { useEffect } from "react"
-import { DownloadIcon } from "lucide-react"
 import { LogoMark } from "@/components/brand/logo"
 import { ActionTile, actionTileFrame } from "@/components/common/action-tile"
-import { cn } from "@/lib/utils"
 import { isInstallSnoozed, useCanInstall, usePwa } from "@/stores/pwa"
 
 // Semua pemicu hanya membuka bottom sheet pasang (install-sheet.tsx) dan hanya
 // tampil kalau aplikasi memang bisa dipasang & belum terpasang.
-
-// Chip di hero landing.
-export function InstallChip({ className }: { className?: string }) {
-  const canInstall = useCanInstall()
-  const openSheet = usePwa((s) => s.openSheet)
-  if (!canInstall) return null
-  return (
-    <button
-      type="button"
-      onClick={openSheet}
-      className={cn(
-        "inline-flex items-center gap-2.5 self-start rounded-full border-[1.5px] border-line bg-sunken py-1.5 pr-4 pl-1.5 text-caption font-semibold outline-none transition-colors hover:border-outline-subtle focus-visible:ring-3 focus-visible:ring-ring/50",
-        className
-      )}
-    >
-      <LogoMark size={24} />
-      Pasang aplikasinya
-      <DownloadIcon aria-hidden className="size-3.5 text-muted-foreground" />
-    </button>
-  )
-}
 
 // Item daftar di footer (mode gelap).
 export function InstallFooterLink() {

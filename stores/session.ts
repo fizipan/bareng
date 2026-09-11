@@ -122,6 +122,7 @@ const signing = new Set<string>()
 let captureTimer: ReturnType<typeof setTimeout> | null = null
 let armedKey = ""
 let resumedKey = ""
+let healedKey = ""
 
 function frameImages() {
   const local: Record<string, string> = {}
@@ -164,6 +165,7 @@ function clearShots() {
   captureTimer = null
   armedKey = ""
   resumedKey = ""
+  healedKey = ""
   for (const shot of shots.values()) URL.revokeObjectURL(shot.url)
   shots.clear()
   grabbing.clear()
@@ -229,6 +231,27 @@ export const useSession = create<Store>()((set, get) => {
     set({ snapshot: snap })
     recompute(event)
     void signMissing(snap)
+    healOrphans(snap)
+  }
+
+  // Foto sendiri yang tercatat tapi filenya tidak pernah sampai (tab/HP sempat
+  // tertutup sebelum upload selesai): tidak bisa dipulihkan dan bikin review
+  // tertahan "Nunggu foto terkirim", jadi diulang berdua.
+  const healOrphans = (snap: RoomSnapshot) => {
+    const me = get().participantId
+    if (snap.status !== "review" || !me) return
+    const lost = snap.frames
+      .filter((f) => f.participant_id === me && f.status !== "uploaded" && !shots.has(`${f.idx}:${f.v}`))
+      .sort((a, b) => a.idx - b.idx)
+    if (!lost.length) return
+    const key = `${snap.id}:${lost.map((f) => `${f.idx}:${f.v}`).join(",")}`
+    if (healedKey === key) return
+    healedKey = key
+    const indices = lost.map((f) => f.idx)
+    notify(indices.length > 1 ? "Beberapa foto belum sempat terkirim, diulang ya" : `Foto ${indices[0] + 1} belum sempat terkirim, diulang ya`)
+    api.requestRetake(snap.id, indices).catch(() => {
+      healedKey = ""
+    })
   }
 
   // Foto yang sudah terkirim tapi barisnya dihapus server (diulang) dibuang,

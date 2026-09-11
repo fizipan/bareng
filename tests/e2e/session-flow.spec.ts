@@ -43,7 +43,8 @@ async function createRoom(page: Page) {
 async function allowCamera(page: Page) {
   await expect(page.getByRole("heading", { name: "Nyalakan kamera" })).toBeVisible({ timeout: 15_000 })
   await page.getByRole("button", { name: "Izinkan kamera" }).click()
-  await expect(page.getByText("Begini nanti hasilnya")).toBeVisible()
+  // Longgar: dev server + dua tes berat berbarengan bisa lambat membuka kamera.
+  await expect(page.getByText("Begini nanti hasilnya")).toBeVisible({ timeout: 20_000 })
 }
 
 const reviewHeading = (page: Page) => page.getByRole("heading", { name: "Empat foto, jadi." })
@@ -269,10 +270,12 @@ test("putus di tengah sesi foto: foto yang terlewat diulang berdua", async ({ br
   await guest.page.close()
   await host.page.waitForTimeout(8_000)
 
-  // Tamu kembali: foto 2 diulang berdua, sesi lanjut sampai review.
+  // Tamu kembali: foto 2 diulang berdua, sesi lanjut sampai review. Foto yang
+  // sempat diambil tapi belum terunggah saat tab ditutup ikut diulang otomatis.
   const back = await guest.context.newPage()
   await back.goto(`/r/${code}`)
   await expect(reviewHeading(host.page)).toBeVisible({ timeout: 90_000 })
+  await expect(host.page.getByRole("button", { name: "Jadikan photostrip" })).toBeEnabled({ timeout: 90_000 })
   await expect(reviewHeading(back)).toBeVisible({ timeout: 10_000 })
   await expectPhotos(host.page)
   await expectPhotos(back)

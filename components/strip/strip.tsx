@@ -1,11 +1,6 @@
 import type { CSSProperties, ReactNode } from "react"
-import {
-  fillTokens,
-  type StripOverlay,
-  type StripTemplate,
-  type StripText,
-  type StripTokens,
-} from "@/lib/templates/schema"
+import type { StripOverlay, StripTemplate, StripText } from "@/lib/templates/schema"
+import { fillTokens, type StripTokens } from "@/lib/templates/tokens"
 import { cn } from "@/lib/utils"
 
 export type Side = "a" | "b"

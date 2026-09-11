@@ -1,10 +1,15 @@
 // Screenshot untuk dialog pasang PWA (public/screenshots/*.webp).
-// Jalankan dengan server lokal hidup: node scripts/pwa-screenshots.mjs [baseUrl]
+// Jalankan dengan server lokal hidup: node scripts/pwa-screenshots.mjs [baseUrl] [--landing]
+// --landing: hanya layar landing (alur sesi butuh dua perangkat sungguhan sejak M2).
 import { execFileSync } from "node:child_process"
 import { mkdirSync } from "node:fs"
 import { chromium } from "@playwright/test"
 
-const BASE = process.argv[2] ?? "http://localhost:3000"
+const args = process.argv.slice(2)
+const ONLY_LANDING = args.includes("--landing")
+const BASE = args.find((a) => !a.startsWith("--")) ?? "http://localhost:3000"
+// Ilustrasi hero butuh ±3 dtk sampai strip selesai tercetak.
+const SETTLE_MS = 3200
 const OUT = "public/screenshots"
 mkdirSync(OUT, { recursive: true })
 
@@ -26,8 +31,9 @@ async function shot(page, name) {
 const m = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
 await m.goto(BASE, { waitUntil: "networkidle" })
 await m.addStyleTag({ content: CLEAN })
-await m.waitForTimeout(600)
+await m.waitForTimeout(SETTLE_MS)
 await shot(m, "narrow-landing")
+if (!ONLY_LANDING) {
 
 await m.getByRole("button", { name: /Mulai foto bareng/ }).first().click()
 await m.getByRole("heading", { name: "Nyalakan kamera" }).waitFor({ timeout: 15000 })
@@ -56,17 +62,18 @@ await m.getByRole("button", { name: "Jadikan photostrip" }).click()
 await m.getByRole("heading", { name: "Jadi! Ini photostrip kalian." }).waitFor()
 await m.waitForTimeout(1200)
 await shot(m, "narrow-hasil")
+}
 await m.close()
 
 // Desktop (wide) 1280×800 @1x
 const d = await browser.newPage({ viewport: { width: 1280, height: 800 } })
 await d.goto(BASE, { waitUntil: "networkidle" })
 await d.addStyleTag({ content: CLEAN })
-await d.waitForTimeout(600)
+await d.waitForTimeout(SETTLE_MS)
 await shot(d, "wide-landing")
 await d.locator("#template").scrollIntoViewIfNeeded()
 await d.evaluate(() => window.scrollTo({ top: document.querySelector("#template").getBoundingClientRect().top + window.scrollY - 40, behavior: "instant" }))
-await d.waitForTimeout(500)
+await d.waitForTimeout(1600)
 await shot(d, "wide-template")
 await d.close()
 await browser.close()

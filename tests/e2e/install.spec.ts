@@ -16,12 +16,18 @@ async function fakeInstallPrompt(page: Page, outcome: "accepted" | "dismissed" =
   }, outcome)
 }
 
-test("android: chip → sheet → prompt bawaan → sheet tertutup", async ({ page }) => {
-  await page.goto("/")
-  await expect(page.getByRole("button", { name: "Pasang aplikasinya" })).toHaveCount(0)
-  await fakeInstallPrompt(page)
+const nudgeOf = (page: Page) => page.getByRole("complementary", { name: "Pasang aplikasi" })
 
-  await page.getByRole("button", { name: "Pasang aplikasinya" }).click()
+test("android: ajakan baru muncul setelah menggulir → sheet → prompt bawaan", async ({ page }) => {
+  await page.goto("/")
+  await fakeInstallPrompt(page)
+  // Tidak langsung muncul begitu halaman dibuka.
+  await page.waitForTimeout(1500)
+  await expect(nudgeOf(page)).toHaveCount(0)
+  await page.locator("#template").scrollIntoViewIfNeeded()
+  await expect(nudgeOf(page)).toBeVisible({ timeout: 6_000 })
+
+  await nudgeOf(page).getByRole("button", { name: "Pasang", exact: true }).click()
   const sheet = page.getByRole("dialog")
   await expect(sheet.getByText("Pasang aplikasi Bareng")).toBeVisible()
   await expect(sheet.getByRole("img")).toHaveCount(4)
@@ -30,13 +36,23 @@ test("android: chip → sheet → prompt bawaan → sheet tertutup", async ({ pa
   await sheet.getByRole("button", { name: "Pasang aplikasi" }).click()
   await expect.poll(() => page.evaluate(() => (window as unknown as { __prompted?: boolean }).__prompted)).toBe(true)
   await expect(sheet).toBeHidden()
-  await expect(page.getByRole("button", { name: "Pasang aplikasinya" })).toHaveCount(0)
+  await expect(nudgeOf(page)).toHaveCount(0)
 })
 
-test("nanti aja → ditunda 14 hari", async ({ page }) => {
+test("tutup ajakan → ditunda 14 hari", async ({ page }) => {
   await page.goto("/")
   await fakeInstallPrompt(page)
-  await page.getByRole("button", { name: "Pasang aplikasinya" }).click()
+  await page.locator("#template").scrollIntoViewIfNeeded()
+  await nudgeOf(page).getByRole("button", { name: "Nanti saja" }).click()
+  await expect(nudgeOf(page)).toHaveCount(0)
+  const until = await page.evaluate(() => Number(localStorage.getItem("bareng:install-snoozed-until")))
+  expect(until - Date.now()).toBeGreaterThan(13 * 86_400_000)
+})
+
+test("link footer → sheet → nanti aja → ditunda", async ({ page }) => {
+  await page.goto("/")
+  await fakeInstallPrompt(page)
+  await page.getByRole("contentinfo").getByRole("button", { name: "Pasang aplikasi" }).click()
   await page.getByRole("dialog").getByRole("button", { name: "Nanti aja" }).click()
   await expect(page.getByRole("dialog")).toBeHidden()
   const until = await page.evaluate(() => Number(localStorage.getItem("bareng:install-snoozed-until")))
@@ -50,9 +66,10 @@ delete iphone.defaultBrowserType
 test.describe("iPhone", () => {
   test.use(iphone)
 
-  test("chip → langkah Tambah ke Layar Utama", async ({ page }) => {
+  test("ajakan → langkah Tambah ke Layar Utama", async ({ page }) => {
     await page.goto("/")
-    await page.getByRole("button", { name: "Pasang aplikasinya" }).click()
+    await page.locator("#template").scrollIntoViewIfNeeded()
+    await nudgeOf(page).getByRole("button", { name: "Pasang", exact: true }).click()
     const sheet = page.getByRole("dialog")
     await expect(sheet.getByText("Pasang Bareng di iPhone")).toBeVisible()
     await expect(sheet.getByText("Tambah ke Layar Utama", { exact: false })).toBeVisible()

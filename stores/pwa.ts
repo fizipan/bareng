@@ -28,11 +28,7 @@ export const usePwa = create<PwaState>()((set, get) => ({
   sheetOpen: false,
   openSheet: () => set({ sheetOpen: true }),
   closeSheet: (snooze = false) => {
-    if (snooze) {
-      try {
-        localStorage.setItem(SNOOZE_KEY, String(Date.now() + SNOOZE_DAYS * 86_400_000))
-      } catch {}
-    }
+    if (snooze) snoozeInstall()
     set({ sheetOpen: false })
   },
   // Prompt bawaan Chromium. iOS tidak punya prompt; sheet menampilkan langkahnya.
@@ -56,5 +52,27 @@ export function isInstallSnoozed() {
     return Number(localStorage.getItem(SNOOZE_KEY) ?? 0) > Date.now()
   } catch {
     return true
+  }
+}
+
+// Tunda ajakan pasang (tombol tutup di kartu ajakan / "Nanti aja" di sheet).
+export function snoozeInstall() {
+  try {
+    localStorage.setItem(SNOOZE_KEY, String(Date.now() + SNOOZE_DAYS * 86_400_000))
+  } catch {}
+}
+
+// Kunjungan ke berapa (dihitung sekali per sesi browser).
+export function visitNumber() {
+  try {
+    let n = Number(localStorage.getItem("bareng:visits") ?? 0)
+    if (!sessionStorage.getItem("bareng:visit-counted")) {
+      n += 1
+      localStorage.setItem("bareng:visits", String(n))
+      sessionStorage.setItem("bareng:visit-counted", "1")
+    }
+    return n
+  } catch {
+    return 1
   }
 }
