@@ -2,8 +2,9 @@
 
 import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ApertureIcon, CheckIcon, ChevronRightIcon, PencilLineIcon, Undo2Icon } from "lucide-react"
+import { ApertureIcon, CheckIcon, ChevronRightIcon, PencilLineIcon, QrCodeIcon, SparklesIcon, Undo2Icon } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
 import { stripNamesOf } from "@/lib/session/room-state"
 import { getFilter } from "@/lib/templates/filters"
 import { getTemplate } from "@/lib/templates/builtin"
@@ -170,7 +171,22 @@ export function LobbyScreen() {
           aria-label="Siap foto"
           className="flex flex-col gap-2.5 rounded-md border border-kabin-line-2 bg-card p-2.5 shadow-[0_-8px_28px_rgb(0_0_0/0.4)]"
         >
-          {s.me.ready ? (
+          {s.needsPremium ? (
+            // Sesi premium (kuota gratis habis) belum dibayar: Siap terkunci,
+            // aksi utamanya bayar. Siapa pun dari berdua boleh membayar.
+            <>
+              <p className="flex items-start gap-2 px-1 pt-0.5 text-caption text-soft-foreground">
+                <SparklesIcon aria-hidden className="mt-px size-3.5 shrink-0 text-flash" />
+                <span>
+                  Sesi premium: bayar {PREMIUM_PRICE_LABEL} sekali untuk berdua, lalu tombol Siap terbuka.
+                </span>
+              </p>
+              <Button onClick={s.openPaywall}>
+                <QrCodeIcon data-icon="inline-start" />
+                Bayar {PREMIUM_PRICE_LABEL}
+              </Button>
+            </>
+          ) : s.me.ready ? (
             // Sudah siap: tunjukkan yang ditunggu, dan jelas bisa dibatalkan.
             <>
               <p

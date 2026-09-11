@@ -23,11 +23,19 @@ const clock = (ms: number) => new Intl.DateTimeFormat("id-ID", { hour: "2-digit"
 function useCopy() {
   const step = useSession((s) => s.paywall.step)
   const pending = useSession((s) => s.paywall.pendingTemplateId)
+  const needsPremium = useSession((s) => s.needsPremium)
+  const guest = useSession((s) => s.role === "guest")
   if (step === "qris") {
     return { title: "Scan untuk bayar", description: "Pakai aplikasi e-wallet atau m-banking yang mendukung QRIS." }
   }
   if (step === "gagal") {
     return { title: "Pembayaran belum berhasil", description: "Tidak ada yang berubah, foto kalian tetap aman." }
+  }
+  if (needsPremium) {
+    return {
+      title: "Bayar sesi premium",
+      description: `${guest ? "Sesi ini dibuat sebagai sesi premium" : "Kuota gratis hari ini sudah habis, jadi sesi ini premium"}. Satu bayar buat kalian berdua: semua template, tanpa watermark, HD.`,
+    }
   }
   return {
     title: pending ? `${getTemplate(pending).name} khusus premium` : "Simpan tanpa watermark",
@@ -88,6 +96,7 @@ function PaywallBody({ mobile }: { mobile: boolean }) {
 
 function OfferStep() {
   const loading = useSession((s) => s.paywall.step === "memuat")
+  const needsPremium = useSession((s) => s.needsPremium)
   const pay = useSession((s) => s.pay)
   const closePaywall = useSession((s) => s.closePaywall)
 
@@ -108,7 +117,7 @@ function OfferStep() {
           {loading ? "Menyiapkan QRIS…" : `Bayar ${PREMIUM_PRICE_LABEL}`}
         </Button>
         <Button variant="ghost" className="text-label" onClick={closePaywall} disabled={loading}>
-          Lanjut dengan watermark
+          {needsPremium ? "Nanti dulu" : "Lanjut dengan watermark"}
         </Button>
       </div>
     </>
@@ -197,11 +206,14 @@ function QrisStep({ charge, mobile }: { charge: PaywallCharge; mobile: boolean }
 function FailedStep() {
   const pay = useSession((s) => s.pay)
   const closePaywall = useSession((s) => s.closePaywall)
+  const needsPremium = useSession((s) => s.needsPremium)
   return (
     <>
       <p className="flex gap-2.5 rounded-md bg-shutter/8 p-3.5 text-small text-soft-foreground">
         <CircleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-shutter" />
-        Tagihan ini tidak jadi. Coba lagi dengan QR baru, atau lanjut dulu dengan watermark.
+        {needsPremium
+          ? "Tagihan ini tidak jadi. Coba lagi dengan QR baru; sesi bisa dimulai begitu lunas."
+          : "Tagihan ini tidak jadi. Coba lagi dengan QR baru, atau lanjut dulu dengan watermark."}
       </p>
       <div className="flex flex-col gap-1">
         <Button onClick={pay}>
@@ -209,7 +221,7 @@ function FailedStep() {
           Coba lagi
         </Button>
         <Button variant="ghost" className="text-label" onClick={closePaywall}>
-          Lanjut dengan watermark
+          {needsPremium ? "Nanti dulu" : "Lanjut dengan watermark"}
         </Button>
       </div>
     </>

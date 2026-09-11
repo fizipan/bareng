@@ -25,6 +25,7 @@ const base: RoomSnapshot = {
   code: "K7M2QX",
   status: "lobby",
   tier: "free",
+  needs_premium: false,
   template_id: "film",
   filter_id: "none",
   current_shot: null,
@@ -136,4 +137,12 @@ describe("estimateOffset", () => {
     expect(estimateOffset(samples)).toBe(1000)
   })
   it("tanpa sampel → 0", () => expect(estimateOffset([])).toBe(0))
+})
+
+describe("sesi premium dari kuota habis", () => {
+  it("terkunci sampai dibayar, lalu terbuka", () => {
+    expect(deriveView({ ...base, needs_premium: true }, local).needsPremium).toBe(true)
+    expect(deriveView({ ...base, needs_premium: true, tier: "premium" }, local).needsPremium).toBe(false)
+    expect(deriveView(base, local).needsPremium).toBe(false)
+  })
 })

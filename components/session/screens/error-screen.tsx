@@ -6,7 +6,8 @@ import { RotateCcwIcon } from "lucide-react"
 import { ErrorArt } from "@/components/art/error-art"
 import { Button } from "@/components/ui/button"
 import { ERROR_COPY } from "@/lib/content/errors"
-import { createRoomError } from "@/lib/content/room-start"
+import { createRoomError, isDailyLimit } from "@/lib/content/room-start"
+import { openQuota } from "@/stores/quota"
 import { warn } from "@/lib/toast"
 import { useSession } from "@/stores/session"
 import { CameraHelpSheet } from "../camera-help-sheet"
@@ -33,7 +34,8 @@ export function ErrorScreen() {
     try {
       router.replace(`/r/${await createRoom()}`)
     } catch (e) {
-      warn(createRoomError(e))
+      if (isDailyLimit(e)) openQuota(async () => router.replace(`/r/${await createRoom({ premium: true })}`))
+      else warn(createRoomError(e))
     }
   }
 

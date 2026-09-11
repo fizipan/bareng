@@ -6,7 +6,8 @@ import { ArrowRightIcon, PlusIcon } from "lucide-react"
 import { Logo } from "@/components/brand/logo"
 import { MiniStrip } from "@/components/art/mini-strip"
 import { Button } from "@/components/ui/button"
-import { createRoomError } from "@/lib/content/room-start"
+import { createRoomError, isDailyLimit } from "@/lib/content/room-start"
+import { openQuota } from "@/stores/quota"
 import { warn } from "@/lib/toast"
 import { useSession } from "@/stores/session"
 import { BackButton } from "../back-button"
@@ -65,7 +66,8 @@ export function JoinScreen() {
               try {
                 router.push(`/r/${await createRoom()}`)
               } catch (e) {
-                warn(createRoomError(e))
+                if (isDailyLimit(e)) openQuota(async () => router.push(`/r/${await createRoom({ premium: true })}`))
+                else warn(createRoomError(e))
               }
             }}
           >

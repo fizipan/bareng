@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation"
 import { ArrowRightIcon, CameraIcon, LoaderCircleIcon } from "lucide-react"
 import { StripIcon } from "@/components/brand/strip-icon"
 import { Button } from "@/components/ui/button"
-import { createRoomError } from "@/lib/content/room-start"
+import { createRoomError, isDailyLimit } from "@/lib/content/room-start"
 import { warn } from "@/lib/toast"
 import { cn } from "@/lib/utils"
+import { openQuota } from "@/stores/quota"
 
 // Kode sesi (Supabase, realtime, zod) baru dimuat saat tombol hampir diklik,
 // jadi landing tetap ringan.
@@ -27,8 +28,15 @@ export function StartButton({ variant = "hero", className }: { variant?: "hero" 
       const { useSession } = await loadSession()
       router.push(`/r/${await useSession.getState().createRoom()}`)
     } catch (e) {
-      warn(createRoomError(e))
       setBusy(false)
+      if (isDailyLimit(e)) {
+        openQuota(async () => {
+          const { useSession } = await loadSession()
+          router.push(`/r/${await useSession.getState().createRoom({ premium: true })}`)
+        })
+        return
+      }
+      warn(createRoomError(e))
     }
   }
 

@@ -10,3 +10,6 @@ export function createRoomError(e: unknown) {
   if (code === "rate_limited") return "Terlalu sering bikin room, tunggu sebentar ya"
   return "Belum bisa bikin room, coba lagi sebentar"
 }
+
+// Kuota gratis harian habis → tawarkan sesi premium (lembar kuota).
+export const isDailyLimit = (e: unknown) => (e as { code?: unknown } | null)?.code === "daily_limit"

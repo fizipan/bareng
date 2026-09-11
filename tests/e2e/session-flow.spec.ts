@@ -9,8 +9,15 @@ import { devices, expect, test, type Browser, type Page } from "@playwright/test
 const pixel: Partial<(typeof devices)["Pixel 7"]> = { ...devices["Pixel 7"] }
 delete pixel.defaultBrowserType
 
-async function newPhone(browser: Browser, baseURL: string | undefined) {
+// Semua sesi tes ditandai perangkat uji ("bareng-uji") supaya tidak ikut
+// statistik & angka landing; "kuota" meniru kuota gratis harian habis.
+async function newPhone(browser: Browser, baseURL: string | undefined, uji: "1" | "kuota" = "1") {
   const context = await browser.newContext({ ...pixel, baseURL })
+  await context.addInitScript((value) => {
+    try {
+      localStorage.setItem("bareng-uji", value)
+    } catch {}
+  }, uji)
   await context.grantPermissions(["clipboard-read", "clipboard-write"])
   const page = await context.newPage()
   const errors: string[] = []
@@ -290,6 +297,48 @@ test("template premium di lobby: gagal bayar aman, lunas → dipakai berdua", as
   await expect(guest.page.getByText("sudah bayar, sesi kalian jadi premium", { exact: false })).toBeVisible()
   await expect(y2k(host.page)).toBeChecked()
   await expect(y2k(guest.page)).toBeChecked()
+
+  expect(host.errors).toEqual([])
+  expect(guest.errors).toEqual([])
+  await host.close()
+  await guest.close()
+})
+
+test("kuota gratis habis: lanjut premium, bayar di booth, lalu Siap terbuka", async ({ browser, baseURL }) => {
+  test.setTimeout(120_000)
+  const host = await newPhone(browser, baseURL, "kuota")
+  const guest = await newPhone(browser, baseURL)
+
+  await host.page.goto("/")
+  await host.page.getByRole("button", { name: /Mulai foto bareng/ }).first().click()
+  await expect(host.page.getByRole("heading", { name: "Sesi gratis hari ini habis" })).toBeVisible()
+  await host.page.getByRole("button", { name: /Lanjut premium/ }).click()
+  await expect(host.page).toHaveURL(/\/r\/[A-Z0-9]{6}$/, { timeout: 15_000 })
+  await expect(host.page.getByText("Sesi premium: bayar", { exact: false })).toBeVisible()
+  const code = host.page.url().split("/").pop()!
+
+  await guest.page.goto(`/r/${code}`)
+  await allowCamera(guest.page)
+  await allowCamera(host.page)
+
+  // Siap terkunci di dua HP; aksi utamanya bayar.
+  for (const p of [host.page, guest.page]) {
+    await expect(p.getByRole("button", { name: /^Bayar Rp/ })).toBeVisible()
+    await expect(p.getByRole("button", { name: "Siap!" })).toHaveCount(0)
+  }
+
+  // Tamu yang bayar: satu bayar berlaku untuk berdua.
+  await guest.page.getByRole("button", { name: /^Bayar Rp/ }).click()
+  const sheet = guest.page.getByRole("dialog")
+  await expect(sheet.getByRole("heading", { name: "Bayar sesi premium" })).toBeVisible()
+  await sheet.getByRole("button", { name: /^Bayar Rp/ }).click()
+  await expect(sheet.getByRole("img", { name: "Kode QR pembayaran" })).toBeVisible({ timeout: 15_000 })
+  await sheet.getByRole("button", { name: "Simulasikan bayar" }).click()
+
+  for (const p of [host.page, guest.page]) {
+    await expect(p.getByRole("button", { name: "Siap!" })).toBeVisible({ timeout: 10_000 })
+    await expect(p.getByRole("button", { name: /^Bayar Rp/ })).toHaveCount(0)
+  }
 
   expect(host.errors).toEqual([])
   expect(guest.errors).toEqual([])

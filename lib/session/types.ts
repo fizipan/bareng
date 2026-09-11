@@ -36,6 +36,8 @@ export type SessionState = {
   conn: Conn
   reconnectAttempt: number
   tier: Tier
+  // Sesi premium yang belum dibayar (kuota gratis habis): Siap terkunci.
+  needsPremium: boolean
   templateId: string
   filterId: FilterId
   sound: boolean
@@ -65,7 +67,7 @@ export type Paywall = {
 }
 
 export type SessionActions = {
-  createRoom: () => Promise<string>
+  createRoom: (opts?: { premium?: boolean }) => Promise<string>
   enterRoom: (code: string) => Promise<void>
   fail: (kind: ErrorKind) => void
   leave: () => void

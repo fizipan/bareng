@@ -19,6 +19,8 @@ export const roomSnapshotSchema = z.object({
   code: z.string(),
   status: z.enum(["waiting", "lobby", "capturing", "review", "done", "expired"]),
   tier: z.enum(["free", "premium"]),
+  // Kuota gratis habis → sesi dibuat sebagai premium, harus dibayar sebelum mulai.
+  needs_premium: z.boolean().optional().default(false),
   template_id: z.string(),
   filter_id: z.string(),
   current_shot: shotSchema.nullable(),
@@ -81,6 +83,7 @@ export type RoomView = {
   screen: Screen
   errorKind?: ErrorKind
   tier: Tier
+  needsPremium: boolean
   templateId: string
   filterId: string
   me: Person
@@ -172,6 +175,7 @@ export function deriveView(
     screen,
     errorKind,
     tier: snap.tier,
+    needsPremium: snap.needs_premium && snap.tier !== "premium",
     templateId: snap.template_id,
     filterId: snap.filter_id,
     me: { name: me?.nickname ?? "Kamu", ready: me?.ready ?? false },

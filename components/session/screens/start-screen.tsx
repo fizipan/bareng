@@ -3,8 +3,9 @@
 import { useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { BoothLoader } from "@/components/art/booth-loader"
-import { createRoomError } from "@/lib/content/room-start"
+import { createRoomError, isDailyLimit } from "@/lib/content/room-start"
 import { warn } from "@/lib/toast"
+import { openQuota } from "@/stores/quota"
 import { useSession } from "@/stores/session"
 
 // Tujuan shortcut "Mulai foto bareng" dari ikon aplikasi: langsung bikin room.
@@ -19,8 +20,9 @@ export function StartScreen() {
     createRoom()
       .then((code) => router.replace(`/r/${code}`))
       .catch((e) => {
-        warn(createRoomError(e))
         router.replace("/")
+        if (isDailyLimit(e)) openQuota(async () => router.push(`/r/${await createRoom({ premium: true })}`))
+        else warn(createRoomError(e))
       })
   }, [createRoom, router])
 

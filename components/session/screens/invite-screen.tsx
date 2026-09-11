@@ -1,12 +1,13 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { CopyIcon } from "lucide-react"
+import { CopyIcon, SparklesIcon } from "lucide-react"
 import { LogoMark } from "@/components/brand/logo"
 import { WhatsAppIcon } from "@/components/brand/whatsapp-icon"
 import { WaitingPair } from "@/components/art/waiting-pair"
 import { Button } from "@/components/ui/button"
 import { SITE_HOST } from "@/lib/brand"
+import { PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
 import { cn } from "@/lib/utils"
 import { useSession } from "@/stores/session"
 import { BackButton } from "../back-button"
@@ -23,6 +24,8 @@ export function InviteScreen() {
   const closeInvite = useSession((s) => s.closeInvite)
   const copyInviteLink = useSession((s) => s.copyInviteLink)
   const shareWhatsApp = useSession((s) => s.shareWhatsApp)
+  const needsPremium = useSession((s) => s.needsPremium)
+  const openPaywall = useSession((s) => s.openPaywall)
 
   return (
     <div className="flex flex-col items-center gap-[26px] px-5 pb-8 text-center">
@@ -103,6 +106,22 @@ export function InviteScreen() {
           <span className="text-meta text-muted-foreground">Room hidup 15 menit kalau dia belum masuk.</span>
         </span>
       </div>
+
+      {needsPremium && (
+        <p className="flex w-full items-start gap-2.5 rounded-md bg-card px-4 py-3 text-left text-meta text-soft-foreground">
+          <SparklesIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-flash" />
+          <span>
+            Sesi premium: bayar {PREMIUM_PRICE_LABEL} sekali untuk berdua sebelum mulai foto, sekarang atau nanti di booth.{" "}
+            <button
+              type="button"
+              onClick={openPaywall}
+              className="cursor-pointer font-semibold text-foreground underline underline-offset-4 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              Bayar sekarang
+            </button>
+          </span>
+        </p>
+      )}
 
       <div className="flex w-full items-center gap-2.5">
         <span className="h-[3px] flex-1 rounded-[2px] bg-shutter" />

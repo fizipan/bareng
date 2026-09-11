@@ -78,6 +78,7 @@ function initialState(): SessionState & Local {
     conn: "ok",
     reconnectAttempt: 0,
     tier: "free",
+    needsPremium: false,
     templateId: DEFAULT_TEMPLATE_ID,
     filterId: "none",
     sound: true,
@@ -202,6 +203,7 @@ export const useSession = create<Store>()((set, get) => {
       screen: view.screen,
       errorKind: view.errorKind ?? s.errorKind,
       tier: view.tier,
+      needsPremium: view.needsPremium,
       templateId: view.templateId,
       filterId: view.filterId as SessionState["filterId"],
       me: view.me,
@@ -609,8 +611,8 @@ export const useSession = create<Store>()((set, get) => {
       await Promise.race([runPublish(path, key, s.result.slug), new Promise((r) => setTimeout(r, 8000))])
     },
 
-    createRoom: async () => {
-      const { code } = await api.createRoom()
+    createRoom: async (opts) => {
+      const { code } = await api.createRoom(!!opts?.premium)
       return code
     },
 

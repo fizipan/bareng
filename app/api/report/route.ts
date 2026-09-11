@@ -29,8 +29,9 @@ export async function POST(req: Request) {
   const { data, error } = await sb.rpc("file_report", { p_slug: slug, p_reason: reason, p_note: note || undefined })
   if (error) return Response.json({ error: "failed" }, { status: 500 })
 
-  const result = data as { inserted: boolean; reports?: number }
-  if (result.inserted && result.reports && NOTIFY_AT.has(result.reports)) {
+  const result = data as { inserted: boolean; reports?: number; test?: boolean }
+  // Photostrip dari sesi uji (tes otomatis) tidak mengirim email ke admin.
+  if (result.inserted && !result.test && result.reports && NOTIFY_AT.has(result.reports)) {
     const reports = result.reports
     after(async () => {
       const { data: row } = await sb.rpc("get_public_result", { p_slug: slug })

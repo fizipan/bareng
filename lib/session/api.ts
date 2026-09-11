@@ -27,6 +27,18 @@ function toRoomError(error: { message?: string } | null): RoomError {
   return new RoomError(code, KIND[code] ?? null)
 }
 
+// Perangkat uji (tes otomatis & pengembangan): localStorage "bareng-uji".
+// Room-nya ditandai supaya tidak ikut statistik & angka landing. Nilai
+// "kuota" meniru kuota gratis habis (untuk menguji alur beli di tes).
+function testMode(): "1" | "kuota" | null {
+  try {
+    const v = localStorage.getItem("bareng-uji")
+    return v === "kuota" ? "kuota" : v ? "1" : null
+  } catch {
+    return null
+  }
+}
+
 async function call<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
   await ensureSession()
   // RPC bertipe; nama fungsi dinamis di sini supaya error mapping satu tempat.
@@ -52,7 +64,11 @@ async function post<T>(path: string, body: object): Promise<T> {
 }
 
 export const api = {
-  createRoom: () => call<{ room_id: string; code: string }>("create_room"),
+  createRoom: async (premium = false) => {
+    const test = testMode()
+    if (test === "kuota" && !premium) throw new RoomError("daily_limit", null)
+    return call<{ room_id: string; code: string }>("create_room", { p_test: !!test, p_premium: premium })
+  },
   joinRoom: (code: string) =>
     call<{ room_id: string; participant_id: string; role: "host" | "guest" }>("join_room", { p_code: code }),
   getRoom: async (roomId: string): Promise<RoomSnapshot> =>
