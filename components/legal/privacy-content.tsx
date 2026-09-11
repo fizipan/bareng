@@ -28,8 +28,14 @@ const KEPT = [
   "Catatan teknis tanpa data pribadi: kapan room dibuat, berapa lama video tersambung, dan langkah yang dipakai (mis. unduh atau bagikan)",
   "Isi masukan yang kamu kirim lewat Pusat bantuan, beserta jenis browser & HP-mu (dan email kalau kamu isi)",
   "Nama dan kontak yang kamu tulis kalau kamu minta akses demo",
+  "Catatan pembayaran kalau kamu beli sesi premium: nomor pesanan, jumlah, dan statusnya",
 ]
-const NOT_KEPT = ["Rekaman video atau suara", "Isi obrolan kalian", "Nomor HP dan email"]
+const NOT_KEPT = [
+  "Rekaman video atau suara",
+  "Isi obrolan kalian",
+  "Nomor HP dan email",
+  "Nomor kartu atau rekening — bayarnya di aplikasi e-wallet kamu, bukan di sini",
+]
 
 const DELETE_STEPS = ["Buka halaman hasil", "Ketuk “Hapus foto”", "Hilang untuk kalian berdua"]
 
@@ -48,7 +54,7 @@ export function PrivacyContent() {
       page="privasi"
       title="Privasi"
       lede="Yang terjadi di booth, tetap di booth. Ini yang kami simpan, dan yang nggak."
-      updated="11 September 2026"
+      updated="12 September 2026"
       art={<SealedStrip />}
       toc={TOC}
     >
@@ -104,7 +110,10 @@ export function PrivacyContent() {
             </div>
           </div>
         </div>
-        <LegalText>Foto per frame ikut terhapus bersama photostrip-nya.</LegalText>
+        <LegalText>
+          Foto per frame ikut terhapus bersama photostrip-nya. Catatan teknis dan catatan pembayaran disimpan terpisah dari
+          foto: pembayaran untuk pembukuan, catatan teknis untuk memperbaiki produk.
+        </LegalText>
       </LegalSection>
 
       <LegalSection id="hapus" title="Menghapus foto kalian">

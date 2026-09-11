@@ -1,4 +1,4 @@
-import { CheckIcon, ShieldCheckIcon } from "lucide-react"
+import { CheckIcon, FlaskConicalIcon, ShieldCheckIcon } from "lucide-react"
 import { BoothTicket } from "@/components/art/legal-art"
 import { BRAND } from "@/lib/brand"
 import { FREE_SESSIONS_PER_DAY, PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
@@ -31,12 +31,15 @@ const TOC = [
 ]
 
 export function TermsContent() {
+  // Selama gateway masih "mock" (belum ada provider asli), pembayaran belum
+  // menarik uang sungguhan — halaman ini ikut jujur soal itu.
+  const testMode = (process.env.PAYMENT_PROVIDER ?? "mock") === "mock"
   return (
     <LegalLayout
       page="ketentuan"
       title="Ketentuan pakai"
       lede={`Dengan memakai ${BRAND}, kamu setuju dengan hal-hal di bawah ini. Kami tulis sependek mungkin.`}
-      updated="11 September 2026"
+      updated="12 September 2026"
       art={<BoothTicket />}
       toc={TOC}
     >
@@ -76,6 +79,15 @@ export function TermsContent() {
           Gratis dibatasi {FREE_SESSIONS_PER_DAY} sesi per hari per perangkat; kalau kuotanya habis, kamu tetap bisa lanjut
           dengan membayar sesi premium, atau menunggu kuota balik besoknya.
         </LegalText>
+        {testMode && (
+          <p className="flex gap-3 rounded-md bg-flash/25 px-4 py-3.5 text-small text-foreground">
+            <FlaskConicalIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
+            <span>
+              <span className="font-semibold">Pembayaran masih mode uji.</span> Belum ada uang sungguhan yang ditarik, dan sesi
+              premium belum bisa dibeli beneran. Kami perbarui halaman ini begitu pembayaran aktif.
+            </span>
+          </p>
+        )}
       </LegalSection>
 
       <LegalSection id="gagal" title="Kalau gagal">
