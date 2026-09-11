@@ -90,7 +90,7 @@ export function ResultScreen() {
             <div className="animate-strip-out">
               <Strip
                 template={template}
-                tokens={{ date: formatStripDate(date), host: SITE_HOST }}
+                tokens={{ date: formatStripDate(date), host: SITE_HOST, names: s.result?.names }}
                 watermark={isFree}
                 filter={getFilter(s.filterId).css}
                 shadow="strip"

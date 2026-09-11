@@ -357,7 +357,7 @@ export const useSession = create<Store>()((set, get) => {
           template: getTemplate(s.templateId),
           images,
           filterCss: getFilter(s.filterId).css,
-          tokens: { date: formatStripDate(createdAt), host: SITE_HOST },
+          tokens: { date: formatStripDate(createdAt), host: SITE_HOST, names: result.names },
           watermark: !premium,
           width: premium ? PREMIUM_WIDTH : FREE_WIDTH,
         })

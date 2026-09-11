@@ -616,8 +616,9 @@ html:has(main[data-screen="lobby"]) [data-sonner-toaster][data-y-position="botto
   bottom: calc(144px + env(safe-area-inset-bottom));
 }
 @media (max-width: 767px) {
-  html:has(main[data-screen="hasil"]) [data-sonner-toaster][data-y-position="bottom"] {
-    bottom: calc(148px + env(safe-area-inset-bottom));
+  html:has(main[data-screen="hasil"]) [data-sonner-toaster][data-y-position="bottom"],
+  html:has(main[data-screen="review"]) [data-sonner-toaster][data-y-position="bottom"] {
+    bottom: calc(160px + env(safe-area-inset-bottom));
   }
 }
 

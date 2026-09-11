@@ -61,7 +61,7 @@ export function PublicResult({ data }: { data: PublicResultData }) {
             <div className="relative flex flex-col items-center gap-3">
               <Strip
                 template={template}
-                tokens={{ date: formatStripDate(data.createdAt), host: SITE_HOST }}
+                tokens={{ date: formatStripDate(data.createdAt), host: SITE_HOST, names: data.names }}
                 filter={data.filter}
                 shadow="strip"
                 className="w-[200px] -rotate-2 @3xl:w-[240px]"

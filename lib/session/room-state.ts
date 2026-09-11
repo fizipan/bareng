@@ -195,6 +195,15 @@ export function deriveView(
   }
 }
 
+// Nama berdua untuk template/share: "host & tamu" kalau keduanya mengisi nama
+// panggilan (aturan yang sama dengan results.names di server), selain itu null.
+export function stripNamesOf(snapshot: RoomSnapshot | null) {
+  const nick = (role: "host" | "guest") => snapshot?.participants.find((p) => p.role === role)?.nickname
+  const host = nick("host")
+  const guest = nick("guest")
+  return host && guest ? `${host} & ${guest}` : null
+}
+
 // Toast untuk aksi yang dilakukan pasangan (aksi sendiri sudah ada toast lokal).
 export function partnerEventMessage(event: RoomEvent, partnerName: string, templateName: (id: string) => string) {
   switch (event.type) {

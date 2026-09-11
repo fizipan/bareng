@@ -2,8 +2,9 @@
 
 import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ApertureIcon, CheckIcon } from "lucide-react"
+import { ApertureIcon, CheckIcon, ChevronRightIcon, PencilLineIcon, Undo2Icon } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { stripNamesOf } from "@/lib/session/room-state"
 import { getFilter } from "@/lib/templates/filters"
 import { getTemplate } from "@/lib/templates/builtin"
 import { LIVE_A, LIVE_B } from "@/lib/templates/placeholder"
@@ -69,15 +70,13 @@ export function LobbyScreen() {
   }
 
   const partnerMic = !!(partner?.id && s.mics[partner.id])
+  // Nama panggilan yang benar-benar diisi (bukan "Kamu"/"Dia" bawaan).
+  const myNick = s.snapshot?.participants.find((p) => p.id === s.participantId)?.nickname ?? null
+  const bothNames = stripNamesOf(s.snapshot)
   const filterCss = getFilter(s.filterId).css
   const both = partner?.ready && s.me.ready
 
-  const readyLabel = s.me.ready ? "Nunggu dia siap…" : partner?.joined ? "Siap!" : "Nunggu dia masuk…"
-  const readyHint = both
-    ? "Dua-duanya siap, mulai…"
-    : s.me.ready
-      ? "Nunggu dia tekan siap"
-      : "Kalian berdua harus tekan siap"
+  const partnerLabel = partner?.name ?? "Dia"
 
   // Tile kiri selalu host, kanan tamu — sama dengan urutan di strip.
   const mine = {
@@ -146,6 +145,13 @@ export function LobbyScreen() {
         </div>
       </section>
 
+      <NameHint
+        myNick={myNick}
+        partnerName={partner?.joined ? (partner.name ?? "Dia") : null}
+        bothNames={bothNames}
+        onEdit={() => setEditingName(true)}
+      />
+
       <section className="flex flex-col gap-2.5">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="text-small font-semibold">Template</h2>
@@ -164,20 +170,39 @@ export function LobbyScreen() {
           aria-label="Siap foto"
           className="flex flex-col gap-2.5 rounded-md border border-kabin-line-2 bg-card p-2.5 shadow-[0_-8px_28px_rgb(0_0_0/0.4)]"
         >
-          <div className="flex gap-2">
-            <ReadyChip ready={s.me.ready} label={s.me.ready ? "Kamu siap" : "Kamu belum siap"} />
-            <ReadyChip
-              ready={!!partner?.ready}
-              label={`${partner?.name ?? "Dia"} ${partner?.ready ? "siap" : "belum siap"}`}
-            />
-          </div>
-          <Button onClick={s.toggleReady} aria-pressed={s.me.ready}>
-            <CheckIcon data-icon="inline-start" />
-            {readyLabel}
-          </Button>
-          <span className="sr-only" aria-live="polite">
-            {readyHint}
-          </span>
+          {s.me.ready ? (
+            // Sudah siap: tunjukkan yang ditunggu, dan jelas bisa dibatalkan.
+            <>
+              <p
+                aria-live="polite"
+                className="flex min-h-8 items-center justify-center gap-2 rounded-full bg-sunken px-3 text-caption text-soft-foreground"
+              >
+                <span aria-hidden className="relative inline-flex size-2">
+                  <span className="absolute inset-0 animate-ping-ring rounded-full bg-ok" />
+                  <span className="relative size-2 rounded-full bg-ok" />
+                </span>
+                {both ? "Dua-duanya siap, mulai…" : `Kamu siap. Nunggu ${partnerLabel} tekan siap…`}
+              </p>
+              <Button variant="secondary" onClick={s.toggleReady} aria-pressed disabled={!!both}>
+                <Undo2Icon data-icon="inline-start" />
+                Batal siap
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <ReadyChip ready={false} label="Kamu belum siap" />
+                <ReadyChip ready={!!partner?.ready} label={`${partnerLabel} ${partner?.ready ? "siap" : "belum siap"}`} />
+              </div>
+              <Button onClick={s.toggleReady} aria-pressed={false}>
+                <CheckIcon data-icon="inline-start" />
+                {partner?.joined ? "Siap!" : "Nunggu dia masuk…"}
+              </Button>
+              <span className="sr-only" aria-live="polite">
+                {partner?.ready ? `${partnerLabel} sudah siap, tinggal kamu` : "Kalian berdua harus tekan siap"}
+              </span>
+            </>
+          )}
         </section>
       </div>
 
@@ -194,6 +219,57 @@ export function LobbyScreen() {
         <NicknameDialog open current={s.me.name} onOpenChange={setEditingName} onSave={s.setNickname} />
       )}
     </div>
+  )
+}
+
+// Nama panggilan opsional: kalau dua-duanya diisi, nama berdua tampil di
+// template Polaroid & link yang dibagikan.
+function NameHint({
+  myNick,
+  partnerName,
+  bothNames,
+  onEdit,
+}: {
+  myNick: string | null
+  partnerName: string | null
+  bothNames: string | null
+  onEdit: () => void
+}) {
+  const title = bothNames
+    ? `${bothNames} tampil di photostrip`
+    : myNick
+      ? `Nama kamu: ${myNick}`
+      : "Tulis nama panggilan kamu"
+  const body = bothNames
+    ? "Muncul di template Polaroid dan di link yang dibagikan. Ketuk untuk ubah namamu."
+    : myNick
+      ? `Tinggal ${partnerName ?? "dia"} isi namanya, biar nama kalian berdua tampil di template Polaroid & link yang dibagikan.`
+      : "Kalau kalian berdua isi, namanya tampil di template Polaroid dan di link yang dibagikan. Opsional."
+
+  return (
+    <button
+      type="button"
+      onClick={onEdit}
+      className={cn(
+        "flex w-full cursor-pointer items-center gap-3 rounded-md border-[1.5px] px-3.5 py-3 text-left outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50",
+        bothNames ? "border-transparent bg-card" : "border-dashed border-kabin-line hover:border-kabin-soft/50"
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          "grid size-9 shrink-0 place-items-center rounded-full",
+          bothNames ? "bg-ok/20 text-ok" : "bg-card text-flash"
+        )}
+      >
+        {bothNames ? <CheckIcon className="size-4" strokeWidth={2.5} /> : <PencilLineIcon className="size-4" />}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-small font-semibold">{title}</span>
+        <span className="text-caption text-muted-foreground">{body}</span>
+      </span>
+      <ChevronRightIcon aria-hidden className="size-4 shrink-0 text-faint-foreground" />
+    </button>
   )
 }
 

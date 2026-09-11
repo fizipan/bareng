@@ -67,7 +67,7 @@ export function SessionApp({ code, framed = false }: { code?: string; framed?: b
         className={cn(
           "relative mx-auto flex min-h-0 w-full flex-1 animate-fade-in flex-col",
           // Hasil punya tata letak dua kolom di layar lebar; sisanya satu kolom HP.
-          screen === "hasil" ? "max-w-[1040px]" : "max-w-[440px]"
+          screen === "hasil" || screen === "review" ? "max-w-[1040px]" : "max-w-[440px]"
         )}
       >
         <ScreenView />

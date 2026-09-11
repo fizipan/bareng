@@ -182,7 +182,8 @@ export const BUILTIN_TEMPLATES: StripTemplate[] = [
     cols: 1,
     slotH: 104,
     slotBorder: { width: 8, color: "#FFFFFF" },
-    note: "kamu & dia",
+    // Nama berdua kalau keduanya mengisi nama panggilan, selain itu "kamu & dia".
+    note: "{{names}}",
     noteColor: "#5F5D69",
   }),
   buildStrip({

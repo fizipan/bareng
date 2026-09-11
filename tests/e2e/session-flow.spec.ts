@@ -149,7 +149,7 @@ test("dua orang: buat room, gabung, foto serentak, ulang, hasil", async ({ brows
 
   // Tamu minta ulang foto 2 → dua-duanya kembali ke foto 2.
   await guest.page.getByRole("button", { name: /^Foto 2/ }).click()
-  await guest.page.getByRole("button", { name: "Ulang foto ini" }).click()
+  await guest.page.getByRole("button", { name: "Ulang foto 2" }).click()
   await expect(host.page.getByText(/Foto\s*2\s*dari 4/)).toBeVisible({ timeout: 10_000 })
   await expect(host.page.getByText("Dimas minta ulang foto 2")).toBeVisible()
   // Lewati pose kalau masih sempat; kalau fase pose sudah lewat (jaringan

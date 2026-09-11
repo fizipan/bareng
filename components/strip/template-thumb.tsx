@@ -1,6 +1,7 @@
 import type { StripTemplate } from "@/lib/templates/schema"
 import { lookBackground } from "@/lib/templates/placeholder"
 import { cn } from "@/lib/utils"
+import { fillTokens } from "@/lib/templates/tokens"
 
 // Thumbnail ringkas template (prototipe `mini()`): bukan skala penuh, cukup
 // ciri visualnya — kertas, sprocket, pita, bingkai slot, catatan kecil.
@@ -55,7 +56,7 @@ export function TemplateThumb({
         className={cn("absolute font-display leading-none font-semibold", landing ? "bottom-[5px] left-2 text-[9px]" : "bottom-1 left-[7px] text-[8px]")}
         style={{ color: preview.noteColor }}
       >
-        {preview.note}
+        {fillTokens(preview.note, { date: "", host: "" })}
       </span>
       {showBadge && template.tier === "premium" && (
         <span className="absolute top-1 right-1 rounded-sm bg-flash px-1.5 py-0.5 text-[9px] leading-none font-semibold text-darkroom">
