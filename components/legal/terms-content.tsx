@@ -1,7 +1,7 @@
 import { CheckIcon, ShieldCheckIcon } from "lucide-react"
 import { BoothTicket } from "@/components/art/legal-art"
 import { BRAND } from "@/lib/brand"
-import { PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
+import { FREE_SESSIONS_PER_DAY, PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
 import { ContactCard } from "./contact-card"
 import { LegalLayout, LegalSection, LegalText } from "./legal-layout"
 
@@ -73,6 +73,8 @@ export function TermsContent() {
         </div>
         <LegalText>
           Sesi premium {PREMIUM_PRICE_LABEL} dibayar sekali lewat QRIS dan berlaku untuk satu room, untuk kalian berdua.
+          Gratis dibatasi {FREE_SESSIONS_PER_DAY} sesi per hari per perangkat; kalau kuotanya habis, kamu tetap bisa lanjut
+          dengan membayar sesi premium, atau menunggu kuota balik besoknya.
         </LegalText>
       </LegalSection>
 

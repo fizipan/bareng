@@ -4,7 +4,9 @@ import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ApertureIcon, CheckIcon, ChevronRightIcon, PencilLineIcon, QrCodeIcon, SparklesIcon, Undo2Icon } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { track } from "@/lib/analytics"
 import { PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
+import { parseUserAgent } from "@/lib/device-info"
 import { stripNamesOf } from "@/lib/session/room-state"
 import { getFilter } from "@/lib/templates/filters"
 import { getTemplate } from "@/lib/templates/builtin"
@@ -40,11 +42,21 @@ export function LobbyScreen() {
   const closedWhileWaiting = useRef(false)
 
   // Klik "Izinkan mikrofon" (atau "coba lagi"): getUserMedia langsung dari klik.
+  // Hasil percobaan mic ikut dicatat (tanpa data pribadi): kalau ada HP yang
+  // selalu gagal, penyebabnya kelihatan di Statistik.
+  const noteMic = (result: string) =>
+    track(s.roomId, "mic_result", {
+      result,
+      izin: micPermission,
+      inApp: parseUserAgent(navigator.userAgent).inApp ?? "tidak",
+    })
+
   const allowMic = async () => {
     const retry = micStep === "denied"
     closedWhileWaiting.current = false
     setMicStep("waiting")
     const result = await media.setMic(true)
+    noteMic(result)
     if (closedWhileWaiting.current) {
       if (result !== "ok") warn("Mikrofon belum diizinkan")
       return
@@ -64,7 +76,10 @@ export function LobbyScreen() {
     // Sudah pernah dijawab (izin/blokir): langsung coba dari klik ini. Blokir
     // gagal seketika tanpa pop-up → lembar panduan. Belum pernah → penjelasan dulu.
     if (media.hasMicTrack() || micPermission === "granted" || micPermission === "denied") {
-      void media.setMic(true).then((result) => result !== "ok" && setMicStep(result))
+      void media.setMic(true).then((result) => {
+        noteMic(result)
+        if (result !== "ok") setMicStep(result)
+      })
       return
     }
     setMicStep("ask")

@@ -18,6 +18,8 @@ const VIDEO: MediaTrackConstraints = {
   frameRate: { ideal: 30, max: 30 },
 }
 
+const AUDIO: MediaTrackConstraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+
 function failureOf(e: unknown): CameraFailure {
   switch ((e as DOMException | null)?.name) {
     case "NotAllowedError":
@@ -51,14 +53,32 @@ export async function openCamera(): Promise<MediaStream> {
 // Audio opsional & default mati (PRD R2): mic baru diminta saat dinyalakan.
 export async function openMic(): Promise<MediaStreamTrack> {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    })
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: AUDIO })
     return stream.getAudioTracks()[0]
   } catch (e) {
     throw new CameraError(failureOf(e))
   }
 }
+
+// Kamera + mic sekaligus. Dipakai saat mic dinyalakan di iPhone (dan sebagai
+// cadangan di perangkat lain): di sana getUserMedia kedua bisa mematikan
+// stream kamera yang sedang jalan, jadi lebih aman minta dua-duanya lalu
+// menukar stream-nya.
+export async function openCameraAndMic(): Promise<MediaStream> {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new CameraError(window.isSecureContext ? "missing" : "insecure")
+  }
+  try {
+    return await navigator.mediaDevices.getUserMedia({ video: VIDEO, audio: AUDIO })
+  } catch (e) {
+    throw new CameraError(failureOf(e))
+  }
+}
+
+// iPhone/iPad (termasuk iPad yang mengaku Mac).
+export const isIOS = () =>
+  typeof navigator !== "undefined" &&
+  (/iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1))
 
 // Izin kamera/mic yang sudah pernah diberikan (tidak semua browser mendukung).
 export async function devicePermission(name: "camera" | "microphone"): Promise<PermissionState | "unsupported"> {

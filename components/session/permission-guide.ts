@@ -1,3 +1,5 @@
+import { parseUserAgent } from "@/lib/device-info"
+
 export type Device = "Kamera" | "Mikrofon"
 export type Guide = { browser: string; steps: string[]; note?: string }
 
@@ -8,6 +10,20 @@ export function guideFor(device: Device): Guide {
   const touch = navigator.maxTouchPoints > 1
   const lower = device.toLowerCase()
   const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && touch)
+  // Browser di dalam aplikasi (link dibuka dari chat/sosmed) sering memblokir
+  // kamera & mic, dan tidak punya setelan izin sama sekali.
+  const inApp = parseUserAgent(ua).inApp
+  if (inApp) {
+    return {
+      browser: `Browser dalam ${inApp}`,
+      steps: [
+        `${device} sering diblokir kalau Bareng dibuka di dalam ${inApp}.`,
+        ios ? "Ketuk ikon ⋯ (atau kompas) di pojok, pilih Buka di Safari." : "Ketuk ikon ⋮ di pojok, pilih Buka di browser / Chrome.",
+        "Kalau tidak ada pilihannya: salin link room ini, lalu tempel di Chrome atau Safari.",
+      ],
+      note: "Link room tetap sama, jadi kamu tidak perlu bikin ulang.",
+    }
+  }
   if (ios && /CriOS|FxiOS|EdgiOS/.test(ua)) {
     return {
       browser: "Browser di iPhone",

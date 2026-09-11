@@ -161,15 +161,15 @@ const PLANS = [
     price: "Rp0",
     unit: "selamanya",
     perks: ["3 template", "Watermark kecil", "Simpan 7 hari", "3 sesi per hari"],
-    note: "Langsung pakai, nggak perlu daftar.",
+    note: "Langsung pakai, nggak perlu daftar. Kuota balik lagi tiap hari.",
     premium: false,
   },
   {
     name: "Sekali sesi",
     price: PREMIUM_PRICE_SHORT,
     unit: "per sesi",
-    perks: ["Semua 6 template", "Tanpa watermark", "Kualitas tinggi", "Simpan permanen"],
-    note: "Satu bayar untuk kalian berdua, di akhir sesi, kalau mau hasil tanpa watermark.",
+    perks: ["Semua 6 template", "Tanpa watermark & HD", "Simpan permanen", "Nggak kena batas harian"],
+    note: "Satu bayar untuk kalian berdua. Bisa dibayar sebelum foto atau setelah lihat hasil.",
     premium: true,
   },
 ]
@@ -185,7 +185,7 @@ const PRICE_FACTS = [
 function Pricing() {
   return (
     <section id="harga" className="flex scroll-mt-6 flex-col gap-4 @3xl:gap-6">
-      <SectionHeader title="Harga" desc="Gratis selamanya. Bayar cuma kalau mau hasil tanpa watermark." />
+      <SectionHeader title="Harga" desc="Gratis tiap hari. Bayar cuma kalau mau hasil tanpa watermark atau nambah sesi." />
       <div className="grid gap-3 @3xl:grid-cols-2 @3xl:gap-6">
         {PLANS.map((plan) => (
           <div

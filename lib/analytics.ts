@@ -15,6 +15,7 @@ export type TrackName =
   | "share"
   | "paywall_viewed"
   | "retake"
+  | "mic_result"
 
 const sent = new Set<string>()
 

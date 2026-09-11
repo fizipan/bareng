@@ -1026,7 +1026,8 @@ function trackLink(roomId: string | null, status: string, prevStatus: string, at
 useMedia.subscribe((m, prev) => {
   const session = useSession.getState()
   trackLink(session.roomId, m.link.status, prev.link.status, prev.link.attempt)
-  if (prev.local && !m.local && session.camera === "granted" && session.screen !== "hasil") {
+  // `resting` = kamera sengaja dilepas di layar review, bukan dicabut orangnya.
+  if (prev.local && !m.local && !m.resting && session.camera === "granted" && session.screen !== "hasil") {
     useSession.setState({ camera: "unknown", autoCamera: false })
   }
   if (m.link !== prev.link || m.local !== prev.local) session.refresh()

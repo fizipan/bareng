@@ -2,7 +2,7 @@
 
 import { create } from "zustand"
 import { grabFrame, releaseCapture, warmCapture } from "@/lib/rtc/capture"
-import { CameraError, openCamera, openMic, stopStream, type CameraFailure } from "@/lib/rtc/media"
+import { CameraError, isIOS, openCamera, openCameraAndMic, openMic, stopStream, type CameraFailure } from "@/lib/rtc/media"
 import { IDLE_LINK, PeerLink, type LinkState, type Signal } from "@/lib/rtc/peer"
 
 // Kamera lokal + sambungan video ke pasangan. Hidup di luar React supaya
@@ -15,7 +15,8 @@ type MediaState = {
   opening: boolean
   mic: boolean
   micBusy: boolean
-  // Kamera & mic dijeda (layar review): track dimatikan, perangkat tetap terbuka.
+  // Kamera & mic dilepas sementara (layar review): lampu kamera di HP mati,
+  // dibuka lagi saat kembali ke lobby / foto ulang.
   resting: boolean
 }
 
@@ -35,6 +36,42 @@ let opening: Promise<MediaStream> | null = null
 // Naik tiap stop(): kamera yang baru selesai dibuka setelah stop langsung dimatikan.
 let cameraGen = 0
 
+// Pakai stream ini sebagai kamera lokal: pasang pendengar "ended", kirim ke
+// pasangan, dan siapkan kanvas untuk memotret.
+function adopt(stream: MediaStream) {
+  stream.getVideoTracks()[0]?.addEventListener("ended", () => {
+    if (useMedia.getState().local === stream) useMedia.setState({ local: null, mic: false })
+  })
+  const audio = stream.getAudioTracks()[0]
+  audio?.addEventListener("ended", () => {
+    stream.removeTrack(audio)
+    if (useMedia.getState().local === stream) useMedia.setState({ mic: false })
+  })
+  useMedia.setState({ local: stream, mic: !!audio?.enabled })
+  peer?.setLocal(stream)
+  warmCapture(stream)
+}
+
+// Cara kedua menyalakan mic: minta kamera + mic sekaligus, lalu tukar stream.
+// Di iPhone permintaan getUserMedia kedua bisa mematikan stream kamera yang
+// lama, jadi di sana ini yang dipakai lebih dulu.
+async function swapWithMic(old: MediaStream): Promise<"ok" | CameraFailure> {
+  const gen = cameraGen
+  try {
+    const fresh = await openCameraAndMic()
+    if (gen !== cameraGen || useMedia.getState().local !== old) {
+      stopStream(fresh)
+      return "unknown"
+    }
+    stopStream(old)
+    releaseCapture()
+    adopt(fresh)
+    return "ok"
+  } catch (e) {
+    return e instanceof CameraError ? e.reason : "unknown"
+  }
+}
+
 export const media = {
   // Buka kamera sekali; panggilan berikutnya memakai stream yang sama.
   openCamera(): Promise<MediaStream> {
@@ -49,13 +86,8 @@ export const media = {
           stopStream(stream)
           throw new CameraError("unknown")
         }
-        // Kamera dicabut / dipakai aplikasi lain → minta izin lagi.
-        stream.getVideoTracks()[0]?.addEventListener("ended", () => {
-          if (useMedia.getState().local === stream) useMedia.setState({ local: null, mic: false })
-        })
-        useMedia.setState({ local: stream })
-        peer?.setLocal(stream)
-        warmCapture(stream)
+        // Kamera dicabut / dipakai aplikasi lain → minta izin lagi (di adopt()).
+        adopt(stream)
         return stream
       })
       .finally(() => {
@@ -101,12 +133,16 @@ export const media = {
     if (micBusy) return "ok"
     useMedia.setState({ micBusy: true })
     try {
+      // iPhone: langsung minta kamera + mic sekaligus (lihat swapWithMic).
+      if (isIOS()) return await swapWithMic(local)
       const track = await openMic()
-      if (useMedia.getState().local !== local) {
+      const video = local.getVideoTracks()[0]
+      // Sebagian browser mematikan stream lama begitu mic dibuka: ulangi
+      // dengan kamera + mic sekaligus supaya kameranya tidak ikut mati.
+      if (useMedia.getState().local !== local || !video || video.readyState === "ended") {
         track.stop()
-        return "unknown"
+        return await swapWithMic(local)
       }
-      // Mic dicabut / dipakai aplikasi lain di tengah sesi.
       track.addEventListener("ended", () => {
         local.removeTrack(track)
         if (useMedia.getState().local === local) useMedia.setState({ mic: false })
@@ -116,31 +152,50 @@ export const media = {
       useMedia.setState({ mic: true })
       return "ok"
     } catch (e) {
-      return e instanceof CameraError ? e.reason : "unknown"
+      const reason = e instanceof CameraError ? e.reason : "unknown"
+      // Ditolak orangnya → panduan izin. Gagal lain → coba cara kedua.
+      if (reason === "denied" || reason === "insecure") return reason
+      return await swapWithMic(local)
     } finally {
       useMedia.setState({ micBusy: false })
     }
   },
 
-  // Layar review: tidak ada video yang ditampilkan, jadi kamera & mic dijeda
-  // (tidak ada gambar/suara terkirim). Perangkat tetap terbuka supaya foto
-  // ulang langsung jalan tanpa minta izin lagi.
+  // Layar review: tidak ada video yang ditampilkan, jadi kamera & mic benar-
+  // benar dilepas (lampu kamera di HP ikut mati). Dibuka lagi lewat wake().
   rest() {
     const { local, mic, resting } = useMedia.getState()
     if (!local || resting) return
     micBeforeRest = mic
-    local.getTracks().forEach((t) => (t.enabled = false))
+    // `resting` disetel lebih dulu supaya kamera yang hilang di sini tidak
+    // dianggap dicabut oleh store sesi.
     useMedia.setState({ resting: true, mic: false })
+    peer?.detachLocal()
+    stopStream(local)
+    releaseCapture()
+    useMedia.setState({ local: null })
   },
 
   // Kembali ke kamera (foto ulang / lobby); mic kembali seperti sebelum dijeda.
-  wake() {
-    const { local, resting } = useMedia.getState()
-    if (!local || !resting) return
-    local.getVideoTracks().forEach((t) => (t.enabled = true))
-    const audio = local.getAudioTracks()
-    audio.forEach((t) => (t.enabled = micBeforeRest))
-    useMedia.setState({ resting: false, mic: micBeforeRest && audio.length > 0 })
+  // Kalau tadi mic nyala, kamera + mic dibuka sekaligus (satu permintaan saja,
+  // penting di iPhone).
+  async wake(): Promise<void> {
+    if (!useMedia.getState().resting) return
+    useMedia.setState({ resting: false })
+    if (useMedia.getState().local?.active) return
+    if (!micBeforeRest) {
+      await media.openCamera()
+      return
+    }
+    const gen = cameraGen
+    try {
+      const fresh = await openCameraAndMic()
+      if (gen !== cameraGen) return stopStream(fresh)
+      adopt(fresh)
+    } catch {
+      // Mic gagal (mis. dipakai aplikasi lain) → minimal kameranya hidup lagi.
+      await media.openCamera()
+    }
   },
 
   disconnect() {

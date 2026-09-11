@@ -154,7 +154,12 @@ test("dua orang: buat room, gabung, foto serentak, ulang, hasil", async ({ brows
   await expectPhotos(host.page)
   await expectPhotos(guest.page)
 
-  // Tamu minta ulang foto 2 → dua-duanya kembali ke foto 2.
+  // Layar review: kamera & mic benar-benar dilepas (lampu kamera HP ikut mati).
+  for (const p of [host.page, guest.page]) {
+    await expect(p.locator("main[data-screen='review']")).toHaveAttribute("data-camera", "mati")
+  }
+
+  // Tamu minta ulang foto 2 → dua-duanya kembali ke foto 2 (kamera dibuka lagi).
   await guest.page.getByRole("button", { name: /^Foto 2/ }).click()
   await guest.page.getByRole("button", { name: "Ulang foto 2" }).click()
   await expect(host.page.getByText(/Foto\s*2\s*dari 4/)).toBeVisible({ timeout: 10_000 })

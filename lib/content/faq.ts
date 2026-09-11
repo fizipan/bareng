@@ -1,4 +1,4 @@
-import { PREMIUM_PRICE_LABEL } from "./pricing"
+import { FREE_SESSIONS_PER_DAY, PREMIUM_PRICE_LABEL } from "./pricing"
 
 export const FAQ = [
   { q: "Harus daftar dulu?", a: "Nggak usah. Klik link, nyalakan kamera, langsung foto." },
@@ -19,6 +19,10 @@ export const FAQ = [
     a: "Biasanya izin kamera belum dikasih. Buka pengaturan situs di browser, izinkan kamera, lalu muat ulang halamannya.",
   },
   { q: "Hasilnya bisa disimpan berapa lama?", a: "Tujuh hari kalau gratis. Kalau premium, tersimpan terus sampai kalian hapus." },
+  {
+    q: "Kalau kuota gratis harian habis?",
+    a: `Gratis ${FREE_SESSIONS_PER_DAY} sesi per hari per HP. Kalau habis, kamu bisa lanjut dengan sesi premium ${PREMIUM_PRICE_LABEL} (bayar sebelum mulai foto), minta pasanganmu yang bikin room, atau tunggu besok karena kuotanya balik lagi.`,
+  },
   {
     q: "Bayarnya pakai apa?",
     a: `QRIS, jadi bisa dari GoPay, OVO, DANA, ShopeePay, atau m-banking. Sekali bayar ${PREMIUM_PRICE_LABEL} berlaku untuk kalian berdua.`,

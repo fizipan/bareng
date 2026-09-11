@@ -4,7 +4,7 @@ import { useEffect } from "react"
 import { ModeRoot } from "@/components/brand/mode-root"
 import type { Screen } from "@/lib/session/types"
 import { cn } from "@/lib/utils"
-import { media } from "@/stores/media"
+import { media, useMedia } from "@/stores/media"
 import { useSession } from "@/stores/session"
 import { PaywallSheet } from "./paywall-sheet"
 import { RemoteAudio } from "./remote-audio"
@@ -53,8 +53,14 @@ export function SessionApp({ code, framed = false }: { code?: string; framed?: b
   useEffect(() => {
     if (framed) return
     if (screen === "review") media.rest()
-    else if (screen === "lobby" || screen === "capture") media.wake()
-    else if (screen === "hasil") media.stop()
+    else if (screen === "lobby" || screen === "capture") {
+      // Kamera gagal dibuka lagi (izin dicabut, dipakai aplikasi lain) →
+      // kembali ke layar izin, bukan diam-diam tanpa kamera.
+      void media.wake().catch(() => {
+        useSession.setState({ camera: "unknown", autoCamera: false })
+        useSession.getState().refresh()
+      })
+    } else if (screen === "hasil") media.stop()
   }, [screen, framed])
 
   useEffect(() => {
@@ -62,6 +68,7 @@ export function SessionApp({ code, framed = false }: { code?: string; framed?: b
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_COLOR[mode])
   }, [mode, framed])
 
+  const cameraOn = useMedia((m) => !!m.local?.active)
   const ScreenView = SCREENS[screen]
   // Layar capture tidak di-scroll: strip menyesuaikan tinggi layar.
   const fixedHeight = screen === "capture"
@@ -74,6 +81,8 @@ export function SessionApp({ code, framed = false }: { code?: string; framed?: b
       <main
         key={screen}
         data-screen={screen}
+        // Kamera benar-benar terbuka atau tidak (lampu kamera HP ikut ini).
+        data-camera={cameraOn ? "nyala" : "mati"}
         className={cn(
           "relative mx-auto flex min-h-0 w-full flex-1 animate-fade-in flex-col",
           // Hasil punya tata letak dua kolom di layar lebar; sisanya satu kolom HP.

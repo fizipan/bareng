@@ -229,11 +229,25 @@ export class PeerLink {
     if (this.pc === pc && this.local) this.attach(pc, this.local)
   }
 
+  // Pasang track lokal. Kalau jalur untuk jenis itu sudah ada (mis. kamera
+  // dibuka ulang setelah layar review), track-nya diganti di tempat supaya
+  // tidak menambah jalur baru dan pasangan tidak melihat video beku.
   private attach(pc: RTCPeerConnection, stream: MediaStream) {
-    const sending = pc.getSenders().map((s) => s.track)
     for (const track of stream.getTracks()) {
-      if (!sending.includes(track)) pc.addTrack(track, stream)
+      if (pc.getSenders().some((s) => s.track === track)) continue
+      const slot = pc.getTransceivers().find((t) => {
+        const kind = t.sender.track?.kind ?? t.receiver.track?.kind
+        return kind === track.kind && t.sender.track !== track && t.direction !== "recvonly"
+      })
+      if (slot) void slot.sender.replaceTrack(track).catch(() => {})
+      else pc.addTrack(track, stream)
     }
+  }
+
+  // Berhenti mengirim video/suara tanpa menutup sambungan (layar review).
+  detachLocal() {
+    this.local = null
+    this.pc?.getSenders().forEach((s) => void s.replaceTrack(null).catch(() => {}))
   }
 
   private onIceState(pc: RTCPeerConnection) {
