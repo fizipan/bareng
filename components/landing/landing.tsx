@@ -3,7 +3,7 @@ import { ArrowRightIcon, CheckIcon, KeyRoundIcon } from "lucide-react"
 import { Logo, LogoMark, Wordmark } from "@/components/brand/logo"
 import { Strip } from "@/components/strip/strip"
 import { BRAND, SUPPORT_EMAIL } from "@/lib/brand"
-import { FAQ } from "@/lib/content/faq"
+import { faqList } from "@/lib/content/faq"
 import { PREMIUM_PRICE_SHORT } from "@/lib/content/pricing"
 import { getTemplate } from "@/lib/templates/builtin"
 import { cn } from "@/lib/utils"
@@ -23,6 +23,8 @@ import { StartButton } from "./start-button"
 // Landing R0 (prototipe baris 97–363). Responsif lewat container query, supaya
 // tampil benar juga di bingkai HP halaman /dev/screens.
 export function Landing() {
+  // Gateway masih "mock" → jawaban pembayaran di FAQ ikut menyebut mode uji.
+  const faq = faqList((process.env.PAYMENT_PROVIDER ?? "mock") === "mock")
   return (
     <div className="@container flex flex-1 flex-col">
       <main className="mx-auto flex w-full max-w-[520px] flex-col gap-[30px] px-5 pt-2 pb-9 @3xl:max-w-[1040px] @3xl:gap-16 @3xl:px-10 @3xl:pt-6 @3xl:pb-16">
@@ -80,7 +82,7 @@ export function Landing() {
             desc="Hal-hal yang biasanya ditanya sebelum foto pertama."
             aside="ketuk untuk buka"
           />
-          <Faq />
+          <Faq items={faq} />
           <ContactCard />
         </section>
       </main>
@@ -92,7 +94,7 @@ export function Landing() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "FAQPage",
-            mainEntity: FAQ.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+            mainEntity: faq.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
           }),
         }}
       />

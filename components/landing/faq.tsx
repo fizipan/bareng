@@ -1,14 +1,13 @@
 "use client"
 
 import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion"
-import { FAQ } from "@/lib/content/faq"
+import type { FaqItem } from "@/lib/content/faq"
 
 // FAQ ringkas (R0: 4 pertanyaan). Item terbuka berubah jadi kartu gelap.
 // Di layar lebar dibagi dua kolom yang tingginya tidak saling mengikat.
-const HALF = Math.ceil(FAQ.length / 2)
-const COLUMNS = [FAQ.slice(0, HALF), FAQ.slice(HALF)]
-
-export function Faq() {
+export function Faq({ items }: { items: FaqItem[] }) {
+  const half = Math.ceil(items.length / 2)
+  const COLUMNS = [items.slice(0, half), items.slice(half)]
   return (
     <AccordionPrimitive.Root multiple={false} className="grid gap-2 @3xl:grid-cols-2 @3xl:items-start @3xl:gap-4">
       {COLUMNS.map((column, c) => (
