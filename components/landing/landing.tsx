@@ -15,6 +15,7 @@ import { FigureFill } from "@/components/art/figure"
 import { FooterPrints, GlintStrip } from "./art/footer-prints"
 import { HowItWorksSteps } from "./art/how-it-works"
 import { TemplateTray } from "./art/template-tray"
+import { ContactCard } from "@/components/legal/contact-card"
 import { Faq } from "./faq"
 import { StartButton } from "./start-button"
 
@@ -76,15 +77,7 @@ export function Landing() {
             aside="ketuk untuk buka"
           />
           <Faq />
-          <div className="flex items-center justify-between gap-3 rounded-md border-[1.5px] border-line bg-sunken px-4 py-3.5 @3xl:px-6 @3xl:py-5">
-            <span className="flex flex-col gap-0.5">
-              <span className="text-small font-semibold">Masih ada yang mau ditanya?</span>
-              <span className="text-meta text-muted-foreground">Kami balas dalam 2 hari kerja.</span>
-            </span>
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-meta font-semibold whitespace-nowrap text-link">
-              {SUPPORT_EMAIL}
-            </a>
-          </div>
+          <ContactCard />
         </section>
       </main>
       <Footer />

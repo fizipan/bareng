@@ -1,79 +1,159 @@
-import Link from "next/link"
-import { LegalHeader, LegalSection, LegalText } from "@/components/legal/legal-header"
-import { Button } from "@/components/ui/button"
-import { SUPPORT_EMAIL } from "@/lib/brand"
+import { CheckIcon, InfinityIcon, KeyRoundIcon, Trash2Icon, UserRoundXIcon, VideoOffIcon, XIcon } from "lucide-react"
+import { SealedStrip } from "@/components/art/legal-art"
+import { cn } from "@/lib/utils"
+import { ContactCard } from "./contact-card"
+import { LegalLayout, LegalSection, LegalText } from "./legal-layout"
 
-const SUMMARY = [
-  "Video kalian nggak lewat kami, jadi nggak bisa kami tonton atau simpan.",
-  "Yang tersimpan cuma photostrip jadinya, dan hanya bisa dibuka lewat link kalian.",
-  "Nggak ada akun, nggak ada galeri publik, nggak ada iklan.",
+const PROMISES = [
+  {
+    icon: VideoOffIcon,
+    title: "Video nggak lewat kami",
+    body: "Video tersambung antar HP kalian, jadi nggak bisa kami tonton atau simpan.",
+  },
+  {
+    icon: KeyRoundIcon,
+    title: "Link adalah kuncinya",
+    body: "Photostrip kalian cuma bisa dibuka lewat link kalian sendiri.",
+  },
+  {
+    icon: UserRoundXIcon,
+    title: "Tanpa akun, tanpa iklan",
+    body: "Nggak ada galeri publik, nggak ada profil yang bisa dicari.",
+  },
+]
+
+const KEPT = [
+  "Photostrip jadi, beserta foto per frame dari sesi kalian",
+  "Nama panggilan yang kalian ketik",
+  "Catatan teknis: kapan room dibuat dan berapa lama tersambung",
+]
+const NOT_KEPT = ["Rekaman video atau suara", "Isi obrolan kalian", "Nomor HP dan email"]
+
+const DELETE_STEPS = ["Buka halaman hasil", "Ketuk “Hapus foto”", "Hilang untuk kalian berdua"]
+
+const TOC = [
+  { id: "singkatnya", label: "Singkatnya" },
+  { id: "data", label: "Yang kami simpan" },
+  { id: "lama", label: "Berapa lama disimpan" },
+  { id: "hapus", label: "Menghapus foto" },
+  { id: "anak", label: "Anak-anak" },
+  { id: "kontak", label: "Kontak" },
 ]
 
 export function PrivacyContent() {
   return (
-    <main className="mx-auto flex w-full max-w-[440px] flex-col gap-6 px-5 pt-2 pb-9 md:max-w-[560px] md:pt-8">
-      <LegalHeader title="Privasi" updated="10 September 2026" />
-
-      <div className="flex flex-col gap-2.5 rounded-md bg-darkroom p-4 text-kertas">
-        <span className="font-display text-lg font-semibold">Singkatnya</span>
-        <ul className="flex flex-col gap-2 text-small text-[#E4E2E8]">
-          {SUMMARY.map((line) => (
-            <li key={line} className="flex gap-[9px]">
-              <span aria-hidden className="mt-[7px] size-1.5 shrink-0 rounded-full bg-flash" />
-              {line}
+    <LegalLayout
+      page="privasi"
+      title="Privasi"
+      lede="Yang terjadi di booth, tetap di booth. Ini yang kami simpan, dan yang nggak."
+      updated="11 September 2026"
+      art={<SealedStrip />}
+      toc={TOC}
+    >
+      <LegalSection id="singkatnya" title="Singkatnya">
+        <ul className="grid gap-5 rounded-md bg-darkroom p-5 text-kertas @xl/content:grid-cols-3 @xl/content:gap-6 @xl/content:p-6">
+          {PROMISES.map(({ icon: Icon, title, body }) => (
+            <li key={title} className="flex gap-3.5 @xl/content:flex-col @xl/content:gap-3">
+              <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-darkroom-2 text-flash">
+                <Icon className="size-[18px]" />
+              </span>
+              <span className="flex flex-col gap-1">
+                <span className="text-label font-semibold">{title}</span>
+                <span className="text-small text-kabin-soft">{body}</span>
+              </span>
             </li>
           ))}
         </ul>
-      </div>
+      </LegalSection>
 
-      <LegalSection title="Yang kami simpan">
+      <LegalSection id="data" title="Yang kami simpan, dan yang nggak">
+        <div className="grid gap-3 @xl/content:grid-cols-2">
+          <DataList title="Disimpan" items={KEPT} kept />
+          <DataList title="Nggak disimpan" items={NOT_KEPT} />
+        </div>
         <LegalText>
-          Foto hasil sesi kalian, nama panggilan yang kalian ketik, dan catatan sederhana seperti kapan room dibuat
-          dan berapa lama kalian tersambung. Itu kami pakai buat memperbaiki produk, bukan buat mengenali kamu.
+          Catatan teknis kami pakai buat memperbaiki produk, bukan buat mengenali kamu. Kamera cuma nyala selama sesi,
+          dan mati begitu sesi ditutup.
         </LegalText>
       </LegalSection>
 
-      <LegalSection title="Yang nggak kami simpan">
-        <LegalText>
-          Rekaman video atau suara, isi obrolan, nomor HP, dan email. Kamera cuma nyala di layar kalian berdua, dan
-          mati begitu sesi ditutup.
-        </LegalText>
-      </LegalSection>
-
-      <LegalSection title="Berapa lama disimpan">
-        <div className="flex flex-col gap-2 text-small">
-          <div className="flex items-center justify-between gap-3 rounded-md border-[1.5px] border-line px-3.5 py-[13px]">
-            <span>Sesi gratis</span>
-            <span className="font-semibold">7 hari, lalu terhapus</span>
+      <LegalSection id="lama" title="Berapa lama disimpan">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 rounded-md border-[1.5px] border-line p-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-small text-muted-foreground">Sesi gratis</span>
+              <span className="text-right text-label font-semibold">7 hari, lalu terhapus</span>
+            </div>
+            <div className="flex items-center gap-1" aria-hidden>
+              {Array.from({ length: 7 }, (_, i) => (
+                <span key={i} className="h-1.5 flex-1 rounded-full bg-ink-muted" style={{ opacity: 0.85 - i * 0.1 }} />
+              ))}
+              <Trash2Icon className="ml-1 size-4 text-muted-foreground" />
+            </div>
           </div>
-          <div className="flex items-center justify-between gap-3 rounded-md bg-card px-3.5 py-[13px]">
-            <span>Sesi premium</span>
-            <span className="font-semibold">Disimpan sampai kamu hapus</span>
+          <div className="flex flex-col gap-3 rounded-md bg-darkroom p-4 text-kertas">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-small text-kabin-soft">Sesi premium</span>
+              <span className="text-right text-label font-semibold">Sampai kamu hapus</span>
+            </div>
+            <div className="flex items-center gap-1" aria-hidden>
+              <span className="h-1.5 flex-1 rounded-full bg-flash" />
+              <InfinityIcon className="ml-1 size-4 text-flash" />
+            </div>
           </div>
         </div>
+        <LegalText>Foto per frame ikut terhapus bersama photostrip-nya.</LegalText>
       </LegalSection>
 
-      <LegalSection title="Menghapus foto kalian">
+      <LegalSection id="hapus" title="Menghapus foto kalian">
+        <ol className="grid gap-2 @xl/content:grid-cols-3">
+          {DELETE_STEPS.map((step, i) => (
+            <li key={step} className="flex items-center gap-3 rounded-md bg-card px-3.5 py-3">
+              <span className="grid size-7 shrink-0 place-items-center rounded-full bg-background font-display text-small font-bold">
+                {i + 1}
+              </span>
+              <span className="text-small font-medium">{step}</span>
+            </li>
+          ))}
+        </ol>
         <LegalText>
-          Di halaman hasil ada tombol hapus. Sekali ditekan, foto hilang untuk kalian berdua dan link-nya mati. Kalau
-          linknya sudah terlanjur kamu bagikan, hapus juga pesannya ya.
+          Link-nya langsung mati untuk kalian berdua. Kalau link-nya sudah terlanjur kamu bagikan, hapus juga pesannya
+          ya.
         </LegalText>
       </LegalSection>
 
-      <LegalSection title="Anak-anak">
+      <LegalSection id="anak" title="Anak-anak">
         <LegalText>Produk ini untuk usia 13 tahun ke atas. Di bawah itu, mintalah orang tua yang mendampingi.</LegalText>
       </LegalSection>
 
-      <div className="flex flex-col gap-2.5 rounded-md bg-card p-4">
-        <span className="text-label font-semibold">Ada yang mau ditanya?</span>
-        <span className="text-small text-soft-foreground">
-          Kirim email ke <a href={`mailto:${SUPPORT_EMAIL}`} className="font-semibold text-link">{SUPPORT_EMAIL}</a>.
-          Kami balas dalam 2 hari kerja.
-        </span>
-        <Button variant="link" size="inline" className="self-start" render={<Link href="/ketentuan" />} nativeButton={false}>
-          Baca ketentuan pakai
-        </Button>
-      </div>
-    </main>
+      <section id="kontak" className="scroll-mt-8">
+        <ContactCard title="Ada yang mau ditanya soal privasi?" />
+      </section>
+    </LegalLayout>
+  )
+}
+
+function DataList({ title, items, kept = false }: { title: string; items: string[]; kept?: boolean }) {
+  const Icon = kept ? CheckIcon : XIcon
+  return (
+    <div className="flex flex-col gap-3 rounded-md border-[1.5px] border-line p-4">
+      <span className="text-small font-semibold text-muted-foreground">{title}</span>
+      <ul className="flex flex-col gap-2.5">
+        {items.map((item) => (
+          <li key={item} className="flex gap-2.5 text-small">
+            <span
+              aria-hidden
+              className={cn(
+                "mt-px grid size-5 shrink-0 place-items-center rounded-full",
+                kept ? "bg-ok/15 text-ok" : "bg-card text-muted-foreground"
+              )}
+            >
+              <Icon className="size-3" strokeWidth={3} />
+            </span>
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
