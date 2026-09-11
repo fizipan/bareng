@@ -1,13 +1,13 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { LogOutIcon, ShieldCheckIcon } from "lucide-react"
+import { LogOutIcon } from "lucide-react"
 import { Logo } from "@/components/brand/logo"
 import { Button } from "@/components/ui/button"
 import { adminConfigured, isAdmin } from "@/lib/admin/auth"
 import { supabaseAdmin } from "@/lib/admin/supabase-admin"
 import { cn } from "@/lib/utils"
 import { login, logout, resolveReport } from "./actions"
-import { ReportQueue, type QueueItem } from "./report-queue"
+import { AdminQueue, type AdminTab, type QueueItem } from "./report-queue"
 
 export const metadata: Metadata = { title: "Admin", robots: { index: false, follow: false } }
 
@@ -17,7 +17,8 @@ const requestTime = () => Date.now()
 // Halaman admin: antrean laporan photostrip. Masuk dengan ADMIN_PASSWORD;
 // data dibaca server dengan kunci service_role.
 export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
-  const { e } = await searchParams
+  const { e, tab } = await searchParams
+  const active: AdminTab = tab === "selesai" ? "selesai" : "tinjau"
   const shell = (children: React.ReactNode) => (
     <main className="mx-auto flex w-full max-w-[720px] flex-1 flex-col gap-6 px-5 pt-4 pb-12">
       <header className="flex items-center justify-between gap-3">
@@ -75,7 +76,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
 
   const { data, error } = await supabaseAdmin()!.rpc("admin_report_queue")
   const queue = (data as QueueItem[] | null) ?? []
-  const pending = queue.filter((q) => q.pending > 0 && !q.removed)
+  const waiting = queue.filter((q) => q.pending > 0 && !q.removed).length
 
   return shell(
     <>
@@ -83,7 +84,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
         <div className="flex flex-col gap-1">
           <h1 className="font-display text-display-sm font-bold">Laporan</h1>
           <p className="text-small text-muted-foreground">
-            {pending.length ? `${pending.length} photostrip menunggu ditinjau` : "Semua laporan sudah ditinjau"}
+            {waiting ? `${waiting} photostrip menunggu ditinjau` : "Tidak ada yang perlu ditinjau"}
           </p>
         </div>
         <form action={logout}>
@@ -94,16 +95,17 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
         </form>
       </div>
 
-      {error && <p className="text-small text-shutter">Gagal memuat laporan: {error.message}</p>}
-      {!error && queue.length === 0 && (
-        <div className="flex flex-col items-center gap-2 rounded-md bg-card px-5 py-10 text-center">
-          <ShieldCheckIcon aria-hidden className="size-6 text-ok" />
-          <span className="text-label font-semibold">Belum ada laporan</span>
-          <span className="text-small text-muted-foreground">Kalau ada, kamu juga dapat email.</span>
-        </div>
+      {error ? (
+        <p className="rounded-md bg-shutter/10 px-4 py-3 text-small text-shutter">Gagal memuat laporan: {error.message}</p>
+      ) : (
+        <AdminQueue
+          queue={queue}
+          tab={active}
+          action={resolveReport}
+          now={requestTime()}
+          hrefFor={(t) => (t === "tinjau" ? "/admin" : "/admin?tab=selesai")}
+        />
       )}
-
-      <ReportQueue queue={queue} action={resolveReport} now={requestTime()} />
     </>
   )
 }
