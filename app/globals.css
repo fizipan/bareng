@@ -76,7 +76,9 @@
   --animate-strip-out: strip-out 900ms var(--ease-strip) both;
   --animate-tick: tick 200ms ease-out;
   --animate-blink: blink 1.8s ease-in-out infinite;
-  --animate-fade-in: fade-in 150ms ease-out both;
+  /* backwards, bukan both: setelah selesai tidak menyisakan stacking context,
+     jadi bar siap (z-10) di lobby tetap di atas lapisan grain/vignette. */
+  --animate-fade-in: fade-in 150ms ease-out backwards;
 
   /* Ilustrasi landing (transform/opacity saja; dimatikan oleh reduced motion). */
   --animate-print: print 1100ms var(--ease-strip) both;

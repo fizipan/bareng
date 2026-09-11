@@ -1,4 +1,4 @@
-import { MicIcon, MicOffIcon, PencilIcon } from "lucide-react"
+import { LoaderCircleIcon, MicIcon, MicOffIcon, PencilIcon } from "lucide-react"
 import { GhostFigure } from "@/components/art/figure"
 import { Lens } from "@/components/art/lens"
 import { cn } from "@/lib/utils"
@@ -6,8 +6,11 @@ import { LiveVideo } from "./live-video"
 
 type TileState = "live" | "loading" | "waiting"
 
+type TileMic = { on: boolean; busy?: boolean; onToggle?: () => void }
+
 // Video tile PRD §15.5: feed kamera (atau pola placeholder di galeri dev),
 // "Menunggu kamera…" saat memuat, siluet putus-putus saat dia belum masuk.
+// Status mic tampil di dua tile: tombol di video kamu, penanda di video dia.
 export function VideoTile({
   name,
   state = "live",
@@ -28,7 +31,7 @@ export function VideoTile({
   background?: string
   filter?: string
   onEditName?: () => void
-  mic?: { on: boolean; busy: boolean; toggle: () => void }
+  mic?: TileMic
   className?: string
 }) {
   const filterStyle = filter && filter !== "none" ? { filter } : undefined
@@ -86,18 +89,46 @@ export function VideoTile({
             {name}
           </span>
         ))}
-      {mic && state === "live" && (
-        <button
-          type="button"
-          onClick={mic.toggle}
-          disabled={mic.busy}
-          aria-pressed={mic.on}
-          aria-label={mic.on ? "Matikan mikrofon" : "Nyalakan mikrofon"}
-          className="absolute right-2 bottom-2 inline-flex size-8 items-center justify-center rounded-full bg-darkroom/75 text-kertas outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
-        >
-          {mic.on ? <MicIcon aria-hidden className="size-4" /> : <MicOffIcon aria-hidden className="size-4 text-shutter" />}
-        </button>
-      )}
+      {mic && state === "live" && <MicPill name={name} {...mic} />}
     </div>
+  )
+}
+
+function MicPill({ name, on, busy = false, onToggle }: TileMic & { name: string }) {
+  const icon = busy ? (
+    <LoaderCircleIcon aria-hidden className="size-3.5 animate-spin" />
+  ) : on ? (
+    <MicIcon aria-hidden className="size-3.5" />
+  ) : (
+    <MicOffIcon aria-hidden className="size-3.5 text-shutter-soft" />
+  )
+  const base =
+    "absolute bottom-2 left-2 inline-flex min-h-7 items-center gap-1.5 rounded-full px-2.5 py-1 text-micro font-semibold text-kertas backdrop-blur-sm"
+
+  if (!onToggle) {
+    return (
+      <span role="status" className={cn(base, on ? "bg-ok/90" : "bg-darkroom/80")}>
+        {icon}
+        {on ? "Mic nyala" : "Mic mati"}
+        <span className="sr-only"> ({name})</span>
+      </span>
+    )
+  }
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={busy}
+      aria-pressed={on}
+      aria-label={on ? "Matikan mikrofon" : "Nyalakan mikrofon"}
+      className={cn(
+        base,
+        "cursor-pointer ring-1 outline-none transition-colors before:absolute before:-inset-2 before:content-[''] focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait",
+        on ? "bg-ok/90 ring-ok hover:bg-ok" : "bg-darkroom/85 ring-kertas/25 hover:bg-darkroom"
+      )}
+    >
+      {icon}
+      {busy ? "Menyalakan…" : on ? "Mic nyala" : "Nyalakan mic"}
+    </button>
   )
 }

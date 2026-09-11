@@ -2,9 +2,8 @@
 
 import { create } from "zustand"
 import { grabFrame, releaseCapture, warmCapture } from "@/lib/rtc/capture"
-import { CameraError, openCamera, openMic, stopStream } from "@/lib/rtc/media"
+import { CameraError, openCamera, openMic, stopStream, type CameraFailure } from "@/lib/rtc/media"
 import { IDLE_LINK, PeerLink, type LinkState, type Signal } from "@/lib/rtc/peer"
-import { warn } from "@/lib/toast"
 
 // Kamera lokal + sambungan video ke pasangan. Hidup di luar React supaya
 // tidak putus saat pindah layar (izin → lobby → capture → review).
@@ -80,24 +79,40 @@ export const media = {
   signal: (signal: Signal) => peer?.handle(signal),
   reconnect: () => peer?.reconnect(),
 
-  // Audio opsional, default mati (PRD R2). Mic baru diminta saat pertama nyala.
-  async toggleMic() {
-    const { local, mic, micBusy } = useMedia.getState()
-    if (!local || micBusy) return
+  // Mic sudah pernah diizinkan di sesi ini (track ada) → nyala/mati instan.
+  hasMicTrack: () => !!useMedia.getState().local?.getAudioTracks()[0],
+
+  // Audio opsional, default mati (PRD R2). Mic baru diminta saat pertama
+  // dinyalakan; panggil dari klik (quirk iOS). Pesan gagal diurus lembar izin mic.
+  async setMic(on: boolean): Promise<"ok" | CameraFailure> {
+    const { local, micBusy } = useMedia.getState()
+    if (!local) return "unknown"
     const existing = local.getAudioTracks()[0]
     if (existing) {
-      existing.enabled = !mic
-      useMedia.setState({ mic: !mic })
-      return
+      existing.enabled = on
+      useMedia.setState({ mic: on })
+      return "ok"
     }
+    if (!on) return "ok"
+    if (micBusy) return "ok"
     useMedia.setState({ micBusy: true })
     try {
       const track = await openMic()
+      if (useMedia.getState().local !== local) {
+        track.stop()
+        return "unknown"
+      }
+      // Mic dicabut / dipakai aplikasi lain di tengah sesi.
+      track.addEventListener("ended", () => {
+        local.removeTrack(track)
+        if (useMedia.getState().local === local) useMedia.setState({ mic: false })
+      })
       local.addTrack(track)
       peer?.syncLocal()
       useMedia.setState({ mic: true })
+      return "ok"
     } catch (e) {
-      warn(e instanceof CameraError && e.reason === "denied" ? "Mikrofon belum diizinkan" : "Mikrofon belum bisa dinyalakan")
+      return e instanceof CameraError ? e.reason : "unknown"
     } finally {
       useMedia.setState({ micBusy: false })
     }

@@ -79,9 +79,19 @@ test("dua orang: buat room, gabung, foto serentak, ulang, hasil", async ({ brows
     await expect(p.getByText("Tersambung")).toBeVisible()
   }
 
-  // Mic default mati; dinyalakan host → suaranya sampai ke tamu.
+  // Mic default mati; dinyalakan host lewat lembar izin → suaranya sampai ke
+  // tamu, dan tile host di layar tamu menandai "Mic nyala".
+  await expect(guest.page.getByRole("status").filter({ hasText: "Mic mati" })).toBeVisible()
   await host.page.getByRole("button", { name: "Nyalakan mikrofon" }).click()
+  // Lembar penjelasan hanya muncul kalau browser belum pernah mengizinkan mic
+  // (flag fake-ui menganggapnya sudah diizinkan).
+  const allowMic = host.page.getByRole("button", { name: "Izinkan mikrofon" })
+  await allowMic
+    .waitFor({ timeout: 1500 })
+    .then(() => allowMic.click())
+    .catch(() => {})
   await expect(host.page.getByRole("button", { name: "Matikan mikrofon" })).toHaveAttribute("aria-pressed", "true")
+  await expect(guest.page.getByRole("status").filter({ hasText: "Mic nyala" })).toBeVisible()
   await expect
     .poll(() =>
       guest.page.evaluate(() => {
@@ -97,6 +107,7 @@ test("dua orang: buat room, gabung, foto serentak, ulang, hasil", async ({ brows
   await expect(guest.page.getByText("Begini nanti hasilnya")).toBeVisible({ timeout: 15_000 })
   await expectFeed(guest.page, "remote")
   await expectFeed(host.page, "remote")
+  await expect(guest.page.getByRole("status").filter({ hasText: "Mic nyala" })).toBeVisible()
 
   // Nama panggilan host tampil di layar tamu.
   await host.page.getByRole("button", { name: /Ganti nama panggilan/ }).click()

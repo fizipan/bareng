@@ -57,6 +57,8 @@ type Local = {
   camera: Camera
   showInvite: boolean
   partnerOnline: boolean
+  // Status mic tiap peserta dari presence channel.
+  mics: Record<string, boolean>
   // Izin kamera sudah pernah diberikan → kamera dinyalakan tanpa menunggu klik.
   autoCamera: boolean
   snapshot: RoomSnapshot | null
@@ -88,6 +90,7 @@ function initialState(): SessionState & Local {
     camera: "unknown",
     showInvite: false,
     partnerOnline: true,
+    mics: {},
     autoCamera: false,
     snapshot: null,
   }
@@ -466,7 +469,8 @@ export const useSession = create<Store>()((set, get) => {
     }
   }
 
-  const onPresence = (ids: string[]) => {
+  const onPresence = (ids: string[], mics: Record<string, boolean>) => {
+    set({ mics })
     const partnerId = get().partner?.id
     const online = !partnerId || ids.includes(partnerId)
     if (partnerTimer) clearTimeout(partnerTimer)
@@ -640,7 +644,16 @@ export const useSession = create<Store>()((set, get) => {
           room.leave()
           return
         }
-        unsubscribe = room.leave
+        // Status mic ikut presence, supaya layar dia tahu mic kamu nyala.
+        const joinedRoom = room
+        joinedRoom.setMic(useMedia.getState().mic)
+        const stopMicSync = useMedia.subscribe((m, prev) => {
+          if (m.mic !== prev.mic) joinedRoom.setMic(m.mic)
+        })
+        unsubscribe = () => {
+          stopMicSync()
+          joinedRoom.leave()
+        }
         measureOffset(api.serverNow).then((o) => {
           clockOffset = o
         })
@@ -864,7 +877,9 @@ export const useSession = create<Store>()((set, get) => {
       unlockSounds()
       const sound = !get().sound
       set({ sound })
-      notify(sound ? "Suara shutter nyala" : "Suara shutter mati")
+      // Contoh bunyinya langsung, supaya jelas ini suara apa (bukan mic).
+      if (sound) playShutter()
+      notify(sound ? "Suara hitung mundur & shutter nyala" : "Suara hitung mundur & shutter mati")
     },
 
     errorAction: () => {

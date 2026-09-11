@@ -60,15 +60,17 @@ export async function openMic(): Promise<MediaStreamTrack> {
   }
 }
 
-// Izin kamera yang sudah pernah diberikan (tidak semua browser mendukung).
-export async function cameraPermission(): Promise<PermissionState | "unsupported"> {
+// Izin kamera/mic yang sudah pernah diberikan (tidak semua browser mendukung).
+export async function devicePermission(name: "camera" | "microphone"): Promise<PermissionState | "unsupported"> {
   try {
-    const status = await navigator.permissions.query({ name: "camera" as PermissionName })
+    const status = await navigator.permissions.query({ name: name as PermissionName })
     return status.state
   } catch {
     return "unsupported"
   }
 }
+
+export const cameraPermission = () => devicePermission("camera")
 
 export function stopStream(stream: MediaStream | null) {
   stream?.getTracks().forEach((t) => t.stop())
