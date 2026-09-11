@@ -17,6 +17,7 @@ import { HowItWorksSteps } from "./art/how-it-works"
 import { TemplateTray } from "./art/template-tray"
 import { ContactCard } from "@/components/legal/contact-card"
 import { Faq } from "./faq"
+import { LiveLine, LiveStats } from "./live-stats"
 import { StartButton } from "./start-button"
 
 // Landing R0 (prototipe baris 97–363). Responsif lewat container query, supaya
@@ -60,9 +61,11 @@ export function Landing() {
                 </span>
               </Link>
             </div>
-            <span className="text-meta text-muted-foreground">Satu link, dua orang, 90 detik.</span>
+            <LiveLine fallback="Satu link, dua orang, 90 detik." />
           </div>
         </section>
+
+        <LiveStats />
 
         <HowItWorks />
         <TemplatesPreview />
