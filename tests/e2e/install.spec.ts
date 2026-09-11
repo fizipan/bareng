@@ -78,7 +78,7 @@ test.describe("iPhone", () => {
   })
 
   test("sheet terbuka sendiri di layar hasil sesi", async ({ page }) => {
-    test.skip(!!process.env.PWA, "halaman /dev tidak ada di production")
+    test.skip(!!process.env.PWA || !!process.env.BASE_URL, "halaman /dev tidak ada di production")
     await page.goto("/dev/screens")
     await page.getByRole("button", { name: /8 · Hasil/ }).click()
     await expect(page.getByText("Pasang Bareng di iPhone")).toBeVisible({ timeout: 6_000 })
