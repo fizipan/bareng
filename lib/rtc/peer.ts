@@ -45,6 +45,12 @@ export const IDLE_LINK: LinkState = { status: "idle", attempt: 0, quality: "ok",
 
 const MAX_RESTARTS = 3
 const CONNECT_TIMEOUT_MS = 12_000
+// Negosiasi selesai tapi ICE tak kunjung jalan (mis. kandidat tidak pernah
+// dikumpulkan setelah rollback di Chrome): restart ICE dari host.
+const STUCK_MS = 6_000
+// Tamu menunggu offer pertama host sebelum memasang kamera, supaya dua offer
+// tidak bertabrakan; kalau host belum juga mengirim, tamu mulai sendiri.
+const OFFER_WAIT_MS = 2_500
 const RESTART_TIMEOUT_MS = 8_000
 const DISCONNECT_GRACE_MS = 3_000
 const STATS_MS = 2_000
@@ -71,6 +77,9 @@ export class PeerLink {
   private prevStats: StatsSample | null = null
   private badStreak = 0
   private closed = false
+  private everConnected = false
+  private waitingOffer = false
+  private offerTimer: ReturnType<typeof setTimeout> | undefined
 
   constructor(private opts: Options) {}
 
@@ -85,7 +94,7 @@ export class PeerLink {
 
   setLocal(stream: MediaStream | null) {
     this.local = stream
-    if (stream && this.pc) this.attach(this.pc, stream)
+    if (stream && this.pc && !this.waitingOffer) this.attach(this.pc, stream)
   }
 
   // Track baru di stream lokal (mis. mic dinyalakan) → negosiasi ulang.
@@ -155,6 +164,8 @@ export class PeerLink {
       if (offer) {
         await pc.setLocalDescription()
         if (pc.localDescription) this.emit({ kind: "sdp", description: pc.localDescription.toJSON() })
+        // Offer pertama host sudah dijawab: sekarang tamu pasang kameranya.
+        if (this.waitingOffer) this.releaseLocal(pc)
       }
       return
     }
@@ -173,6 +184,7 @@ export class PeerLink {
     const neg = { makingOffer: false, ignoreOffer: false }
     this.pc = pc
     this.neg = neg
+    this.everConnected = false
     this.set({ ...IDLE_LINK, status: "connecting" })
 
     pc.ontrack = ({ track, streams }) => {
@@ -197,9 +209,24 @@ export class PeerLink {
     }
     pc.oniceconnectionstatechange = () => this.onIceState(pc)
     pc.onsignalingstatechange = () => {
-      if (pc.signalingState === "stable") void this.tuneSender(pc)
+      if (pc.signalingState !== "stable" || this.pc !== pc) return
+      void this.tuneSender(pc)
+      const ice = pc.iceConnectionState
+      if (pc.remoteDescription && (ice === "new" || ice === "checking") && this.state.status !== "failed") this.arm(STUCK_MS)
     }
-    if (this.local) this.attach(pc, this.local)
+    if (this.opts.polite) {
+      this.waitingOffer = true
+      clearTimeout(this.offerTimer)
+      this.offerTimer = setTimeout(() => this.releaseLocal(pc), OFFER_WAIT_MS)
+    } else if (this.local) {
+      this.attach(pc, this.local)
+    }
+  }
+
+  private releaseLocal(pc: RTCPeerConnection) {
+    clearTimeout(this.offerTimer)
+    this.waitingOffer = false
+    if (this.pc === pc && this.local) this.attach(pc, this.local)
   }
 
   private attach(pc: RTCPeerConnection, stream: MediaStream) {
@@ -218,6 +245,7 @@ export class PeerLink {
       case "connected":
       case "completed":
         clearTimeout(this.timer)
+        this.everConnected = true
         this.set({ status: "connected", attempt: 0 })
         void this.tuneSender(pc)
         this.startStats(pc)
@@ -252,8 +280,11 @@ export class PeerLink {
       this.set({ status: "failed" })
       return
     }
-    this.set({ status: "reconnecting", attempt: this.state.attempt + 1 })
-    pc.restartIce()
+    // Belum pernah tersambung: tetap "menyambung" (bukan "terputus") di UI.
+    this.set({ status: this.everConnected ? "reconnecting" : "connecting", attempt: this.state.attempt + 1 })
+    // Hanya host (impolite) yang memulai restart, supaya offer tidak bertabrakan;
+    // tamu cukup menunggu offer baru dari host.
+    if (!this.opts.polite) pc.restartIce()
     this.arm(RESTART_TIMEOUT_MS)
   }
 
@@ -294,6 +325,8 @@ export class PeerLink {
 
   private teardown() {
     clearTimeout(this.timer)
+    clearTimeout(this.offerTimer)
+    this.waitingOffer = false
     this.stopStats()
     const pc = this.pc
     this.pc = null
