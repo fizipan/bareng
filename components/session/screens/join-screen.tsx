@@ -4,8 +4,8 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowRightIcon, PlusIcon } from "lucide-react"
 import { Logo } from "@/components/brand/logo"
+import { MiniStrip } from "@/components/art/mini-strip"
 import { Button } from "@/components/ui/button"
-import { lookBackground } from "@/lib/templates/placeholder"
 import { warn } from "@/lib/toast"
 import { useSession } from "@/stores/session"
 import { BackButton } from "../back-button"
@@ -30,11 +30,7 @@ export function JoinScreen() {
       </div>
 
       <div className="flex items-center gap-3.5 rounded-md bg-card p-3.5">
-        <span aria-hidden className="flex w-[52px] shrink-0 -rotate-5 flex-col gap-[3px] bg-kertas px-1 pt-1 pb-[11px]">
-          {[0, 1, 2].map((look) => (
-            <span key={look} className="block h-5" style={{ background: lookBackground(look, "a", 6) }} />
-          ))}
-        </span>
+        <MiniStrip />
         <span className="flex flex-1 flex-col gap-[3px]">
           <span className="text-label font-semibold">Ada yang ngajak kamu foto bareng?</span>
           <span className="text-meta text-muted-foreground">Empat foto, satu photostrip. Nggak perlu daftar.</span>

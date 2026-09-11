@@ -3,8 +3,8 @@
 import { useEffect, useEffectEvent, useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
 import { LOOKS } from "@/lib/templates/placeholder"
 import { cn } from "@/lib/utils"
-import { Figure, type Pose } from "./figure"
-import { liveProps, useFinePointer, useInView, useLookAt, useReducedMotion } from "./motion"
+import { Figure, type Pose } from "@/components/art/figure"
+import { liveProps, useFinePointer, useInView, useLookAt, useReducedMotion } from "@/components/art/motion"
 
 // Hero: mesin booth mini. Strip keluar dari slot dan foto "tercuci" satu per
 // satu; tombol shutter memutar hitung mundur → kilat → cetakan baru dengan

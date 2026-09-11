@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import Link from "next/link"
 import { CameraIcon } from "lucide-react"
+import { Lens } from "@/components/art/lens"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useMedia } from "@/stores/media"
@@ -22,16 +23,7 @@ export function PermissionScreen() {
 
   return (
     <div className="flex flex-1 flex-col justify-center gap-6 px-5 py-8">
-      <div
-        aria-hidden
-        className="relative flex size-[150px] items-center justify-center self-center rounded-full border-2 border-darkroom-2 bg-kabin-sunken"
-      >
-        <span className="absolute size-[118px] rounded-full border-[1.5px] border-[#302C3D]" />
-        <span className="absolute size-[86px] rounded-full border-[1.75px] border-kabin-line bg-[#141220]" />
-        <span className="absolute size-11 rounded-full bg-darkroom-2" />
-        <span className="absolute size-3.5 -translate-x-3.5 -translate-y-3.5 rounded-full bg-flash" />
-        <span className="absolute right-3.5 bottom-[18px] size-2.5 rounded-full bg-shutter" />
-      </div>
+      <Lens size={150} className="self-center" />
 
       <div className="flex flex-col gap-2.5">
         <h1 className="font-display text-display-md font-semibold">Nyalakan kamera</h1>

@@ -9,8 +9,8 @@ import { DEMO_FRAMES } from "@/lib/session/demo"
 import { BUILTIN_TEMPLATES, getTemplate } from "@/lib/templates/builtin"
 import { LOOKS } from "@/lib/templates/placeholder"
 import { cn } from "@/lib/utils"
-import { Figure } from "./figure"
-import { liveProps, useFinePointer, useInView, useLookAt, useReducedMotion, useTimeline } from "./motion"
+import { Figure } from "@/components/art/figure"
+import { liveProps, useFinePointer, useInView, useLookAt, useReducedMotion, useTimeline } from "@/components/art/motion"
 
 const FEATURES = [
   { title: "Hitung mundur serentak", desc: "Dua layar, satu momen. Selisihnya di bawah 0,15 detik." },

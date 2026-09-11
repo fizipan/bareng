@@ -5,8 +5,8 @@ import { Strip } from "@/components/strip/strip"
 import { SITE_HOST } from "@/lib/brand"
 import { getTemplate } from "@/lib/templates/builtin"
 import { cn } from "@/lib/utils"
-import { FigureFill } from "./figure"
-import { liveProps, useFinePointer, useInView, useLookAt, useReducedMotion } from "./motion"
+import { FigureFill } from "@/components/art/figure"
+import { liveProps, useFinePointer, useInView, useLookAt, useReducedMotion } from "@/components/art/motion"
 
 // Strip asli (renderer yang sama dengan hasil akhir) seperti hasil cetak di
 // meja: jatuh satu per satu saat terlihat, terangkat saat disentuh/disorot,

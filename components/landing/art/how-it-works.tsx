@@ -4,8 +4,8 @@ import { useState } from "react"
 import { CheckCheckIcon, CheckIcon } from "lucide-react"
 import { LOOKS } from "@/lib/templates/placeholder"
 import { cn } from "@/lib/utils"
-import { Figure } from "./figure"
-import { liveProps, useFinePointer, useInView, useLookAt, useReducedMotion, useTimeline } from "./motion"
+import { Figure } from "@/components/art/figure"
+import { liveProps, useFinePointer, useInView, useLookAt, useReducedMotion, useTimeline } from "@/components/art/motion"
 
 const STEPS = [
   { title: "Buat room", desc: "Sekali ketuk, dapat link dan kode enam huruf." },

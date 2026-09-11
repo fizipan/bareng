@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { CopyIcon } from "lucide-react"
 import { LogoMark } from "@/components/brand/logo"
 import { WhatsAppIcon } from "@/components/brand/whatsapp-icon"
+import { WaitingPair } from "@/components/art/waiting-pair"
 import { Button } from "@/components/ui/button"
 import { SITE_HOST } from "@/lib/brand"
 import { useSession } from "@/stores/session"
@@ -90,25 +91,7 @@ export function InviteScreen() {
 
       <div className="relative flex w-full items-center gap-3.5 overflow-hidden rounded-md border-[1.5px] border-dashed border-outline bg-sunken px-4 py-[18px] text-left">
         <span aria-hidden className="absolute inset-0 bg-dots [--dots-color:rgb(138_136_148/0.18)] [background-size:12px_12px]" />
-        <span aria-hidden className="relative flex shrink-0 items-end gap-[7px]">
-          <span className="flex flex-col items-center gap-1">
-            <span className="size-[17px] rounded-full bg-shutter" />
-            <span className="h-[22px] w-[26px] rounded-t-[9px] rounded-b-[3px] bg-shutter" />
-          </span>
-          <span className={partner?.joined ? "flex flex-col items-center gap-1" : "flex animate-blink flex-col items-center gap-1"}>
-            {partner?.joined ? (
-              <>
-                <span className="size-[17px] rounded-full bg-flash" />
-                <span className="h-[22px] w-[26px] rounded-t-[9px] rounded-b-[3px] bg-flash" />
-              </>
-            ) : (
-              <>
-                <span className="size-[17px] rounded-full border-[1.75px] border-dashed border-grain" />
-                <span className="h-[22px] w-[26px] rounded-t-[9px] rounded-b-[3px] border-[1.75px] border-dashed border-grain" />
-              </>
-            )}
-          </span>
-        </span>
+        <WaitingPair joined={!!partner?.joined} className="relative" />
         <span className="relative flex flex-1 flex-col gap-[3px]" aria-live="polite">
           <span className="text-label font-semibold text-foreground">
             {partner?.joined ? `${partner.name} sudah masuk` : "Nunggu dia masuk…"}

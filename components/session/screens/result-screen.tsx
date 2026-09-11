@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { CopyIcon, DownloadIcon, FileImageIcon, PlusIcon, Share2Icon, Trash2Icon } from "lucide-react"
+import { LostStrip } from "@/components/art/lost-strip"
 import { ActionTile, actionTileFrame } from "@/components/common/action-tile"
 import { InstallTile } from "@/components/pwa/install-button"
 import { FrameFill } from "@/components/strip/frame-fill"
@@ -52,6 +53,7 @@ export function ResultScreen() {
   if (s.roomId && !s.result) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 px-5 py-9 text-center">
+        <LostStrip />
         <h1 className="font-display text-display-md font-semibold">Photostrip ini sudah dihapus</h1>
         <p className="max-w-[34ch] text-body text-muted-foreground">Link-nya sudah mati untuk kalian berdua.</p>
         <Button onClick={restart}>

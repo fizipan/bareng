@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { LogoMark } from "@/components/brand/logo"
+import { BoothLoader } from "@/components/art/booth-loader"
 import { useSession } from "@/stores/session"
 
 // Tujuan shortcut "Mulai foto bareng" dari ikon aplikasi: langsung bikin room.
@@ -20,8 +20,8 @@ export function StartScreen() {
   }, [createRoom, router])
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-4 px-5" aria-live="polite">
-      <LogoMark size={48} className="animate-blink" />
+    <main className="flex flex-1 flex-col items-center justify-center gap-5 px-5" aria-live="polite">
+      <BoothLoader />
       <span className="text-small text-muted-foreground">Menyiapkan booth…</span>
     </main>
   )

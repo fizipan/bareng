@@ -91,3 +91,15 @@ export function useLookAt(ref: RefObject<HTMLElement | null>, enabled: boolean) 
     }
   }, [ref, enabled])
 }
+
+// Layar sentuh: tokoh melirik ke titik yang diketuk, lalu kembali ke tengah.
+export function glance(el: HTMLElement, clientX: number, clientY: number, back = 1400) {
+  const r = el.getBoundingClientRect()
+  const clamp = (v: number) => Math.max(-1, Math.min(1, v))
+  el.style.setProperty("--look-x", String(clamp((clientX - (r.left + r.width / 2)) / 120)))
+  el.style.setProperty("--look-y", String(clamp((clientY - (r.top + r.height * 0.45)) / 120)))
+  window.setTimeout(() => {
+    el.style.setProperty("--look-x", "0")
+    el.style.setProperty("--look-y", "0")
+  }, back)
+}

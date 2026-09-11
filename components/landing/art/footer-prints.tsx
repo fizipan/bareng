@@ -5,8 +5,8 @@ import { Strip } from "@/components/strip/strip"
 import { SITE_HOST } from "@/lib/brand"
 import { getTemplate } from "@/lib/templates/builtin"
 import { cn } from "@/lib/utils"
-import { FigureFill } from "./figure"
-import { liveProps, useFinePointer, useInView, useLookAt, useReducedMotion } from "./motion"
+import { FigureFill } from "@/components/art/figure"
+import { liveProps, useFinePointer, useInView, useLookAt, useReducedMotion } from "@/components/art/motion"
 
 // Tiga strip asli keluar dari slot mesin satu per satu saat footer terlihat,
 // lalu ditumpuk seperti hasil cetak; bergeser mengikuti kursor.

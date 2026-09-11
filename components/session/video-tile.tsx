@@ -1,4 +1,6 @@
-import { CameraIcon, MicIcon, MicOffIcon, PencilIcon } from "lucide-react"
+import { MicIcon, MicOffIcon, PencilIcon } from "lucide-react"
+import { GhostFigure } from "@/components/art/figure"
+import { Lens } from "@/components/art/lens"
 import { cn } from "@/lib/utils"
 import { LiveVideo } from "./live-video"
 
@@ -53,16 +55,15 @@ export function VideoTile({
           </>
         ))}
       {state === "loading" && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-darkroom-2 text-caption text-grain">
-          <CameraIcon className="size-6" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 bg-darkroom-2 text-caption text-grain">
+          <Lens size={56} />
           Menunggu kamera…
         </div>
       )}
       {state === "waiting" && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-3 text-center text-caption text-grain">
-          <span aria-hidden className="flex flex-col items-center gap-1 animate-blink">
-            <span className="size-5 rounded-full border-[1.75px] border-dashed border-grain" />
-            <span className="h-6 w-8 rounded-t-[10px] rounded-b-[3px] border-[1.75px] border-dashed border-grain" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center text-caption text-grain">
+          <span aria-hidden className="animate-breathe">
+            <GhostFigure className="size-16" />
           </span>
           Bagikan link ke dia
         </div>

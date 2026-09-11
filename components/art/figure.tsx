@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 // Digambar untuk setengah foto kiri (pasangan di kanan); "dia" dicerminkan.
 // Mata mengikuti --look-x/--look-y (-1…1) dari induknya.
 
-export type Pose = "diam" | "miring" | "peace" | "kaget" | "hati"
+export type Pose = "diam" | "miring" | "peace" | "kaget" | "hati" | "lambai"
 
 const COLOR = { kamu: "#E4462E", dia: "#FFD23F" }
 const INK = "#16141D"
@@ -47,6 +47,13 @@ export function Figure({
             />
           )}
           <path d="M13 60 V49 a12 12 0 0 1 12 -12 h10 a12 12 0 0 1 12 12 V60 Z" />
+          {pose === "lambai" && (
+            // Tangan melambai dari bahu (pivot di bahu, dalam koordinat viewBox).
+            <g className="animate-wave" style={{ transformBox: "view-box", transformOrigin: "10px 44px" }}>
+              <rect x="6.5" y="24" width="6.5" height="21" rx="3.25" />
+              <circle cx="9.75" cy="23" r="4" />
+            </g>
+          )}
           {pose === "peace" && (
             <g>
               <rect x="6" y="27" width="6.5" height="19" rx="3.25" />
@@ -121,5 +128,20 @@ export function FigureFill({ slot, side, set = 0 }: { slot: number; side: "a" | 
         className="absolute inset-x-0 bottom-0 h-auto w-full"
       />
     </span>
+  )
+}
+
+// Siluet bergaris putus-putus: tempat untuk dia yang belum masuk.
+export function GhostFigure({ className, label = "?" }: { className?: string; label?: string }) {
+  return (
+    <svg viewBox="0 0 60 60" aria-hidden className={cn("block", className)} preserveAspectRatio="xMidYMax meet">
+      <g fill="none" stroke="currentColor" strokeWidth="1.6" strokeDasharray="3.2 3" strokeLinecap="round">
+        <path d="M13.8 59.2 V49 a11.2 11.2 0 0 1 11.2 -11.2 h10 a11.2 11.2 0 0 1 11.2 11.2 V59.2" />
+        <circle cx="30" cy="25" r="10" />
+      </g>
+      <text x="30" y="29.5" textAnchor="middle" fontSize="12" fontWeight="700" fill="currentColor" fontFamily="var(--font-bricolage), sans-serif">
+        {label}
+      </text>
+    </svg>
   )
 }

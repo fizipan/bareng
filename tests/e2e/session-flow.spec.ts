@@ -330,4 +330,8 @@ test("halaman legal & hasil yang tidak ada", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Ketentuan pakai" })).toBeVisible()
   const res = await page.goto("/p/tidakada00")
   expect(res?.status()).toBe(404)
+  await expect(page.getByRole("heading", { name: "Photostrip ini sudah nggak ada" })).toBeVisible()
+  const lost = await page.goto("/halaman-yang-tidak-ada")
+  expect(lost?.status()).toBe(404)
+  await expect(page.getByRole("heading", { name: "Halaman ini nggak ada" })).toBeVisible()
 })
