@@ -14,7 +14,12 @@ export async function GET() {
   if (error || !data) {
     return Response.json({ error: "unavailable" }, { status: 503, headers: { "Cache-Control": "no-store" } })
   }
-  const row = data as { people_live: number; strips_today: number; strips_total: number; last_strip_at: number | null }
+  const row = data as {
+    people_live: number
+    strips_today: number
+    strips_total: number
+    last_strip_at: number | null
+  }
   const stats: LandingStats = {
     peopleLive: row.people_live,
     stripsToday: row.strips_today,

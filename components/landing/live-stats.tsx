@@ -5,9 +5,8 @@ import { useReducedMotion } from "@/components/art/motion"
 import { cn } from "@/lib/utils"
 import { subscribeLiveStats, useLiveStats } from "@/stores/live-stats"
 
-// Angka hidup dari database (/api/stats): orang di booth sekarang,
-// photostrip hari ini & total. Tidak ada yang sedang foto → tampilkan kapan
-// photostrip terakhir jadi, bukan angka nol.
+// Angka hidup dari database (/api/stats). Tidak ada yang sedang foto →
+// tampilkan kapan photostrip terakhir jadi, bukan angka nol.
 
 const numbers = new Intl.NumberFormat("id-ID")
 
@@ -57,66 +56,45 @@ function LiveDot({ className }: { className?: string }) {
   )
 }
 
-// Baris kecil di bawah tombol hero. Sebelum data ada: teks cadangan.
+// Satu baris kecil di bawah tombol hero: siapa yang lagi foto (atau kapan
+// photostrip terakhir jadi) · photostrip hari ini (atau total). Sebelum data
+// ada / gagal: teks cadangan.
 export function LiveLine({ fallback }: { fallback: string }) {
   const stats = useFeed()
-  const live = !!stats && stats.peopleLive > 0
-  const recent = !!stats && !live && stats.lastStripAt !== null && stats.at - stats.lastStripAt < 24 * 3_600_000
+  if (!stats) return <span className="text-meta text-muted-foreground">{fallback}</span>
 
-  if (!stats || (!live && !recent)) return <span className="text-meta text-muted-foreground">{fallback}</span>
+  const live = stats.peopleLive > 0
+  const strong = "font-semibold text-foreground tabular-nums"
+  const first = live ? (
+    <>
+      <strong className={strong}>
+        <CountUp value={stats.peopleLive} /> orang
+      </strong>{" "}
+      lagi foto
+    </>
+  ) : stats.lastStripAt !== null ? (
+    <>
+      terakhir jadi <strong className={strong}>{ago(stats.lastStripAt, stats.at).long}</strong>
+    </>
+  ) : null
+  const count = stats.stripsToday > 0 ? stats.stripsToday : stats.stripsTotal
+  const second =
+    count > 0 ? (
+      <>
+        <strong className={strong}>
+          <CountUp value={count} />
+        </strong>{" "}
+        photostrip {stats.stripsToday > 0 ? "hari ini" : "sejauh ini"}
+      </>
+    ) : null
+
+  if (!first && !second) return <span className="text-meta text-muted-foreground">{fallback}</span>
   return (
-    <span className="inline-flex animate-fade-in items-center gap-2 text-meta text-muted-foreground">
-      {live ? (
-        <>
-          <LiveDot />
-          <span>
-            <strong className="font-semibold text-foreground">
-              <CountUp value={stats.peopleLive} /> orang
-            </strong>{" "}
-            lagi foto bareng sekarang
-          </span>
-        </>
-      ) : (
-        <>
-          <span aria-hidden className="size-2 rounded-full bg-shutter" />
-          Photostrip terakhir jadi {ago(stats.lastStripAt!, stats.at).long}
-        </>
-      )}
+    <span className="inline-flex animate-fade-in flex-wrap items-center gap-x-2 gap-y-1 text-meta text-muted-foreground">
+      {live ? <LiveDot /> : <span aria-hidden className="size-2 rounded-full bg-grain/60" />}
+      {first && <span>{first}</span>}
+      {first && second && <span aria-hidden>·</span>}
+      {second && <span>{second}</span>}
     </span>
-  )
-}
-
-// Tiga angka di bawah hero. Tinggi tetap sejak awal (tanda "—" sebelum data).
-export function LiveStats() {
-  const stats = useFeed()
-  const live = !!stats && stats.peopleLive > 0
-  const tiles = [
-    live
-      ? { key: "live", value: <CountUp value={stats.peopleLive} />, label: "orang lagi di booth sekarang", dot: true }
-      : {
-          key: "last",
-          value: stats?.lastStripAt ? ago(stats.lastStripAt, stats.at).short : "—",
-          label: "sejak photostrip terakhir jadi",
-          dot: false,
-        },
-    { key: "today", value: stats ? <CountUp value={stats.stripsToday} /> : "—", label: "photostrip jadi hari ini", dot: false },
-    { key: "total", value: stats ? <CountUp value={stats.stripsTotal} /> : "—", label: "photostrip sejak diluncurkan", dot: false },
-  ]
-
-  return (
-    <section
-      aria-label="Bareng hari ini"
-      className="grid grid-cols-3 divide-x-[1.5px] divide-line rounded-md border-[1.5px] border-line bg-sunken"
-    >
-      {tiles.map((t) => (
-        <div key={t.key} className="flex min-w-0 flex-col gap-1.5 px-3 py-4 @3xl:gap-2 @3xl:px-7 @3xl:py-6">
-          <span className="flex items-center gap-2 font-display text-[26px] leading-none font-extrabold tabular-nums @3xl:text-[40px]">
-            {t.value}
-            {t.dot && <LiveDot className="@3xl:size-2.5" />}
-          </span>
-          <span className="text-caption text-muted-foreground @3xl:text-small">{t.label}</span>
-        </div>
-      ))}
-    </section>
   )
 }
