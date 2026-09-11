@@ -4,6 +4,7 @@ import { useEffect } from "react"
 import { ModeRoot } from "@/components/brand/mode-root"
 import type { Screen } from "@/lib/session/types"
 import { cn } from "@/lib/utils"
+import { media } from "@/stores/media"
 import { useSession } from "@/stores/session"
 import { PaywallSheet } from "./paywall-sheet"
 import { RemoteAudio } from "./remote-audio"
@@ -46,6 +47,15 @@ export function SessionApp({ code, framed = false }: { code?: string; framed?: b
     // Keluar halaman (tombol back, pindah room): matikan kamera & sambungan.
     return () => useSession.getState().reset()
   }, [code, framed, enterRoom, fail])
+
+  // Kamera & mic hanya hidup saat dipakai: dijeda di review (bisa foto ulang),
+  // dimatikan total di hasil (tidak ada kamera lagi setelah photostrip jadi).
+  useEffect(() => {
+    if (framed) return
+    if (screen === "review") media.rest()
+    else if (screen === "lobby" || screen === "capture") media.wake()
+    else if (screen === "hasil") media.stop()
+  }, [screen, framed])
 
   useEffect(() => {
     if (framed) return

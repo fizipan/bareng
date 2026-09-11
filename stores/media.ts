@@ -15,6 +15,8 @@ type MediaState = {
   opening: boolean
   mic: boolean
   micBusy: boolean
+  // Kamera & mic dijeda (layar review): track dimatikan, perangkat tetap terbuka.
+  resting: boolean
 }
 
 export const useMedia = create<MediaState>()(() => ({
@@ -24,9 +26,11 @@ export const useMedia = create<MediaState>()(() => ({
   opening: false,
   mic: false,
   micBusy: false,
+  resting: false,
 }))
 
 let peer: PeerLink | null = null
+let micBeforeRest = false
 let opening: Promise<MediaStream> | null = null
 // Naik tiap stop(): kamera yang baru selesai dibuka setelah stop langsung dimatikan.
 let cameraGen = 0
@@ -118,6 +122,27 @@ export const media = {
     }
   },
 
+  // Layar review: tidak ada video yang ditampilkan, jadi kamera & mic dijeda
+  // (tidak ada gambar/suara terkirim). Perangkat tetap terbuka supaya foto
+  // ulang langsung jalan tanpa minta izin lagi.
+  rest() {
+    const { local, mic, resting } = useMedia.getState()
+    if (!local || resting) return
+    micBeforeRest = mic
+    local.getTracks().forEach((t) => (t.enabled = false))
+    useMedia.setState({ resting: true, mic: false })
+  },
+
+  // Kembali ke kamera (foto ulang / lobby); mic kembali seperti sebelum dijeda.
+  wake() {
+    const { local, resting } = useMedia.getState()
+    if (!local || !resting) return
+    local.getVideoTracks().forEach((t) => (t.enabled = true))
+    const audio = local.getAudioTracks()
+    audio.forEach((t) => (t.enabled = micBeforeRest))
+    useMedia.setState({ resting: false, mic: micBeforeRest && audio.length > 0 })
+  },
+
   disconnect() {
     peer?.close()
     peer = null
@@ -131,6 +156,6 @@ export const media = {
     media.disconnect()
     stopStream(useMedia.getState().local)
     releaseCapture()
-    useMedia.setState({ local: null, mic: false, opening: false })
+    useMedia.setState({ local: null, mic: false, opening: false, resting: false })
   },
 }
