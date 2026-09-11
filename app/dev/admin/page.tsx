@@ -52,7 +52,7 @@ const FEEDBACK: FeedbackItem[] = [
       online: true,
       standalone: false,
       camera: "granted",
-      microphone: "granted",
+      microphone: "denied",
       sessionScreen: "capture",
       app: "a1b2c3d",
     },
