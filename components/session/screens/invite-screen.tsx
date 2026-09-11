@@ -7,6 +7,7 @@ import { WhatsAppIcon } from "@/components/brand/whatsapp-icon"
 import { WaitingPair } from "@/components/art/waiting-pair"
 import { Button } from "@/components/ui/button"
 import { SITE_HOST } from "@/lib/brand"
+import { cn } from "@/lib/utils"
 import { useSession } from "@/stores/session"
 import { BackButton } from "../back-button"
 import { ConnectionPill } from "../connection-pill"
@@ -25,10 +26,13 @@ export function InviteScreen() {
 
   return (
     <div className="flex flex-col items-center gap-[26px] px-5 pb-8 text-center">
-      <div className="-mx-5 flex h-[52px] w-[calc(100%+40px)] items-center justify-center gap-2 border-b-[3px] border-shutter bg-[repeating-linear-gradient(90deg,#241F31_0_10px,#1C1826_10px_20px)]">
-        <LogoMark size={26} />
-        <span className="font-display text-small font-semibold tracking-[0.06em] text-kabin-soft">booth kalian siap</span>
-        <span aria-hidden className="size-2 animate-blink rounded-full bg-shutter" />
+      <div className="-mx-5 flex h-12 w-[calc(100%+40px)] items-center justify-center gap-2 border-b border-kabin-line/70">
+        <LogoMark size={20} />
+        <span className="font-display text-small font-semibold text-kabin-soft">booth kalian siap</span>
+        <span
+          aria-hidden
+          className={cn("size-1.5 rounded-full", partner?.joined ? "bg-ok" : "animate-blink bg-shutter")}
+        />
       </div>
 
       <div className="flex w-full items-center justify-between">
