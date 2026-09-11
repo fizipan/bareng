@@ -4,16 +4,11 @@ import { useState, useSyncExternalStore } from "react"
 import { FlagIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { REPORT_REASONS } from "@/lib/content/report-reasons"
 import { supabase } from "@/lib/supabase/client"
 import { notify, warn } from "@/lib/toast"
 import { cn } from "@/lib/utils"
 
-const REASONS = [
-  { id: "seksual-kekerasan", label: "Konten seksual atau kekerasan" },
-  { id: "tanpa-izin", label: "Foto diambil tanpa izin" },
-  { id: "spam", label: "Spam atau penipuan" },
-  { id: "lainnya", label: "Lainnya" },
-]
 
 const storageKey = (slug: string) => `bareng-reported:${slug}`
 const onStorage = (cb: () => void) => {
@@ -41,9 +36,16 @@ export function ReportButton({ slug }: { slug: string }) {
   const send = async () => {
     if (!reason) return
     setSending(true)
-    const { error } = await supabase().rpc("report_result", { p_slug: slug, p_reason: reason })
+    // Sesi anonim (kalau ada) ikut dikirim: satu laporan per orang.
+    const { data } = await supabase().auth.getSession()
+    const token = data.session?.access_token
+    const res = await fetch("/api/report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ slug, reason }),
+    }).catch(() => null)
     setSending(false)
-    if (error) {
+    if (!res?.ok) {
       warn("Laporan belum terkirim, coba lagi")
       return
     }
@@ -76,7 +78,7 @@ export function ReportButton({ slug }: { slug: string }) {
           </DialogHeader>
           <fieldset className="flex flex-col gap-2">
             <legend className="sr-only">Alasan laporan</legend>
-            {REASONS.map((r) => (
+            {REPORT_REASONS.map((r) => (
               <label
                 key={r.id}
                 className={cn(

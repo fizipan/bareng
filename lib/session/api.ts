@@ -61,7 +61,6 @@ export const api = {
   setResultImage: (slug: string, path: string) => call<void>("set_result_image", { p_slug: slug, p_path: path }),
   // Buang file hasil yang baru dihapus sekarang juga (bukan menunggu jadwal).
   purgeResult: (slug: string) => supabase().functions.invoke("cleanup", { body: { slug } }),
-  reportResult: (slug: string) => call<void>("report_result", { p_slug: slug }),
   serverNow: async () => {
     const { data, error } = await supabase().rpc("server_now")
     if (error) throw error

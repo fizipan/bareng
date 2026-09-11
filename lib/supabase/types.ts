@@ -76,9 +76,9 @@ export type Database = {
         Relationships: []
       }
       reports: {
-        Row: { created_at: string; id: string; reason: string | null; reporter: string | null; result_id: string }
-        Insert: { created_at?: string; id?: string; reason?: string | null; reporter?: string | null; result_id: string }
-        Update: { created_at?: string; id?: string; reason?: string | null; reporter?: string | null; result_id?: string }
+        Row: { created_at: string; id: string; reason: string | null; reporter: string | null; result_id: string; reviewed_at: string | null }
+        Insert: { created_at?: string; id?: string; reason?: string | null; reporter?: string | null; result_id: string; reviewed_at?: string | null }
+        Update: { created_at?: string; id?: string; reason?: string | null; reporter?: string | null; result_id?: string; reviewed_at?: string | null }
         Relationships: []
       }
       results: {
@@ -221,7 +221,9 @@ export type Database = {
       landing_stats: { Args: never; Returns: Json }
       leave_room: { Args: { p_room: string }; Returns: undefined }
       mock_upgrade: { Args: { p_room: string }; Returns: undefined }
-      report_result: { Args: { p_reason?: string; p_slug: string }; Returns: undefined }
+      file_report: { Args: { p_reason?: string; p_slug: string }; Returns: Json }
+      admin_report_queue: { Args: never; Returns: Json }
+      admin_resolve: { Args: { p_slug: string; p_takedown: boolean }; Returns: undefined }
       request_retake: { Args: { p_indices: number[]; p_room: string }; Returns: undefined }
       resume_shot: {
         Args: { p_room: string; p_version: number }
