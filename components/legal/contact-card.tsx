@@ -9,8 +9,9 @@ import { SUPPORT_EMAIL } from "@/lib/brand"
 import { cn } from "@/lib/utils"
 
 // Kartu kontak (landing, Privasi, Ketentuan). Tombol salin untuk HP yang
-// belum punya aplikasi email, jadi mailto: saja nggak cukup. Tokoh melambai
-// hanya saat kartu disentuh/di-hover.
+// belum punya aplikasi email, jadi mailto: saja nggak cukup. Tokoh diam
+// (tanpa kedip & lambai) sampai kartu disentuh/di-hover: animasi SVG yang
+// terus jalan membuat kartu digambar ulang tiap frame dan telat tampil.
 export function ContactCard({
   title = "Masih ada yang mau ditanya?",
   hint = "Kami balas dalam 2 hari kerja.",
@@ -39,7 +40,7 @@ export function ContactCard({
   return (
     <div
       className={cn(
-        "group/contact @container rounded-md border-[1.5px] border-line bg-sunken [&_.animate-wave]:[animation-play-state:paused] [&:is(:hover,:focus-within,:active)_.animate-wave]:[animation-play-state:running]",
+        "group/contact @container rounded-md border-[1.5px] border-line bg-sunken [&_svg_*]:[animation-play-state:paused] [&:is(:hover,:focus-within,:active)_svg_*]:[animation-play-state:running]",
         className
       )}
     >

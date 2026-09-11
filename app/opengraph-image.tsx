@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og"
+import { figureSvg, type StillPose } from "@/components/art/figure-shapes"
 import { BRAND } from "@/lib/brand"
 
 // Gambar pratinjau link (WhatsApp, Twitter/X, dsb.). Dibuat saat build.
@@ -8,12 +9,16 @@ export const contentType = "image/png"
 
 const HEADLINE = "Foto bareng, walau jauh."
 const SUB = "Photobooth online untuk kamu dan dia. Gratis, tanpa akun."
+// Latar & pose tiap frame, sama dengan strip contoh di landing (FigureFill).
 const LOOKS = [
   ["#40384A", "#372F41"],
   ["#463C33", "#3D342C"],
   ["#33443F", "#2C3B37"],
   ["#4A3A3E", "#413135"],
 ]
+const POSES: StillPose[] = ["diam", "miring", "peace", "hati"]
+
+const svgUri = (svg: string) => `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`
 
 // Ambil subset font dari Google Fonts (TTF). Gagal → pakai font bawaan.
 async function googleFont(family: string, weight: number, text: string) {
@@ -29,7 +34,7 @@ async function googleFont(family: string, weight: number, text: string) {
 
 export default async function OpenGraphImage() {
   const [display, body] = await Promise.all([
-    googleFont("Bricolage+Grotesque", 800, `${HEADLINE}${BRAND}.14.0227`),
+    googleFont("Bricolage+Grotesque", 800, `${HEADLINE}${BRAND}${BRAND.toLowerCase()}.14.0227`),
     googleFont("Inter", 500, `${SUB}Satu link, dua orang, 90 detik.`),
   ])
   const fonts = [
@@ -43,9 +48,9 @@ export default async function OpenGraphImage() {
         style={{
           width: "100%",
           height: "100%",
+          position: "relative",
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
           padding: "0 80px",
           background: "#F4F3EF",
           backgroundImage: "radial-gradient(#DCD9D1 2px, transparent 2px)",
@@ -54,7 +59,7 @@ export default async function OpenGraphImage() {
           color: "#16141D",
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: 28, maxWidth: 640 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 28, maxWidth: 600 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <div
               style={{
@@ -110,37 +115,59 @@ export default async function OpenGraphImage() {
           </div>
         </div>
 
+        {/* Kamu & dia mengintip dari balik strip, sambil melambai. */}
+        <img
+          alt=""
+          src={svgUri(figureSvg("kamu", "lambai"))}
+          width={190}
+          height={190}
+          style={{ position: "absolute", left: 668, bottom: -6 }}
+        />
+        <img
+          alt=""
+          src={svgUri(figureSvg("dia", "peace"))}
+          width={190}
+          height={190}
+          style={{ position: "absolute", left: 1000, bottom: -6 }}
+        />
         <div
           style={{
+            position: "absolute",
+            left: 790,
+            top: 44,
             display: "flex",
             flexDirection: "column",
             gap: 12,
             width: 250,
-            padding: "16px 26px 58px",
+            padding: "16px 22px 58px",
             background: "#FFFFFF",
             borderRadius: 3,
             transform: "rotate(4deg)",
             boxShadow: "0 24px 48px rgba(22,20,29,0.18)",
-            position: "relative",
           }}
         >
           {LOOKS.map(([a, b], i) => (
-            <div key={i} style={{ display: "flex", gap: 3, height: 104 }}>
-              <div style={{ flex: 1, background: a }} />
-              <div style={{ flex: 1, background: b }} />
+            <div key={i} style={{ display: "flex", gap: 3, height: 101 }}>
+              <img alt="" src={svgUri(figureSvg("kamu", POSES[i], a))} width={101} height={101} />
+              <img alt="" src={svgUri(figureSvg("dia", POSES[i], b))} width={101} height={101} />
             </div>
           ))}
           <div
             style={{
               position: "absolute",
-              left: 26,
-              bottom: 18,
+              left: 22,
+              bottom: 16,
+              display: "flex",
+              flexDirection: "column",
               fontFamily: "Bricolage",
-              fontSize: 22,
               fontWeight: 800,
             }}
           >
-            14.02.27
+            <span style={{ fontSize: 22 }}>14.02.27</span>
+            <span style={{ fontSize: 14 }}>
+              {BRAND.toLowerCase()}
+              <span style={{ color: "#E4462E" }}>.</span>
+            </span>
           </div>
         </div>
       </div>

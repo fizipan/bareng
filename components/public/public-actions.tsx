@@ -1,15 +1,41 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { CheckIcon, CopyIcon, DownloadIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { saveImage } from "@/lib/save-file"
+import { supabase } from "@/lib/supabase/client"
 import { notify, warn } from "@/lib/toast"
 import { cn } from "@/lib/utils"
 import { usePwa } from "@/stores/pwa"
 
-// Simpan photostrip dari halaman publik (misalnya dia yang menerima link).
-export function DownloadStripButton({ imageUrl, slug, className }: { imageUrl: string; slug: string; className?: string }) {
+// Tombol unduh hanya untuk dua peserta room: dikenali dari sesi anonim di
+// browser yang dipakai saat sesi foto. Pengunjung lain tidak diberi sesi baru.
+export function MemberDownload({ imageUrl, slug }: { imageUrl: string; slug: string }) {
+  const [member, setMember] = useState(false)
+  useEffect(() => {
+    let alive = true
+    const sb = supabase()
+    sb.auth.getSession().then(async ({ data }) => {
+      if (!data.session) return
+      const { data: ok } = await sb.rpc("is_result_member", { p_slug: slug })
+      if (alive && ok === true) setMember(true)
+    })
+    return () => {
+      alive = false
+    }
+  }, [slug])
+
+  if (!member) return null
+  return (
+    <div className="flex w-full animate-fade-in flex-col items-center gap-1.5 @3xl:items-start">
+      <DownloadStripButton imageUrl={imageUrl} slug={slug} className="w-full @3xl:w-auto @3xl:px-6" />
+      <span className="text-caption text-muted-foreground">Tombol unduh cuma muncul untuk kalian berdua.</span>
+    </div>
+  )
+}
+
+function DownloadStripButton({ imageUrl, slug, className }: { imageUrl: string; slug: string; className?: string }) {
   const [saving, setSaving] = useState(false)
   return (
     <Button

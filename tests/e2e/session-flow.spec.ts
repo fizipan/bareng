@@ -194,6 +194,22 @@ test("dua orang: buat room, gabung, foto serentak, ulang, hasil", async ({ brows
   }
   await expect.poll(stripSrc, { timeout: 40_000 }).toContain("/polaroid-none-free.jpg")
   await expect(publicPage.getByRole("heading", { name: "Rara & Dimas" })).toBeVisible()
+
+  // Tombol unduh di halaman publik cuma untuk kalian berdua (tamu = peserta);
+  // orang lain yang pegang link hanya bisa lihat & melaporkan.
+  await expect(publicPage.getByRole("button", { name: "Unduh photostrip" })).toBeVisible({ timeout: 10_000 })
+  const stranger = await newPhone(browser, baseURL)
+  await stranger.page.goto(new URL(link).pathname)
+  await expect(stranger.page.getByRole("heading", { name: "Rara & Dimas" })).toBeVisible()
+  await stranger.page.waitForTimeout(1_500)
+  await expect(stranger.page.getByRole("button", { name: "Unduh photostrip" })).toHaveCount(0)
+  await stranger.page.getByRole("button", { name: "Laporkan halaman ini" }).click()
+  await expect(stranger.page.getByRole("button", { name: "Kirim laporan" })).toBeDisabled()
+  await stranger.page.getByLabel("Foto diambil tanpa izin").check()
+  await stranger.page.getByRole("button", { name: "Kirim laporan" }).click()
+  await expect(stranger.page.getByRole("button", { name: "Sudah dilaporkan" })).toBeDisabled()
+  expect(stranger.errors).toEqual([])
+  await stranger.close()
   const strip = publicPage.locator('img[src*="/object/public/results/"]')
   await expect.poll(() => strip.evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBe(1080)
   const imageUrl = (await strip.getAttribute("src"))!

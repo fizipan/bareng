@@ -8,7 +8,7 @@ import { SITE_HOST } from "@/lib/brand"
 import { formatLongDate, formatStripDate } from "@/lib/format"
 import type { Frame } from "@/lib/session/types"
 import { getTemplate } from "@/lib/templates/builtin"
-import { CopyPageLink, DownloadStripButton } from "./public-actions"
+import { CopyPageLink, MemberDownload } from "./public-actions"
 import { ReportButton } from "./report-button"
 
 export type PublicResultData = {
@@ -42,7 +42,7 @@ export function PublicResult({ data }: { data: PublicResultData }) {
           <CopyPageLink />
         </header>
 
-        <div className="relative flex items-center justify-center overflow-hidden rounded-md bg-card px-5 py-9 @3xl:py-12">
+        <div className="group relative flex items-center justify-center overflow-hidden rounded-md bg-card px-5 py-9 @3xl:py-12">
           <span aria-hidden className="absolute inset-0 bg-dots [mask-image:radial-gradient(circle_at_center,#000_30%,transparent_80%)]" />
           {data.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -52,7 +52,10 @@ export function PublicResult({ data }: { data: PublicResultData }) {
               width={template.canvas.width}
               height={template.canvas.height}
               fetchPriority="high"
-              className="relative h-auto w-[200px] -rotate-2 shadow-strip transition-transform duration-300 ease-out hover:rotate-0 @3xl:w-[240px]"
+              draggable={false}
+              // Tanpa "Simpan gambar" lewat klik kanan / tekan lama: unduh cuma untuk
+              // kalian berdua lewat tombol di bawah.
+              className="pointer-events-none relative h-auto w-[200px] -rotate-2 shadow-strip transition-transform duration-300 ease-out select-none [-webkit-touch-callout:none] group-hover:rotate-0 @3xl:w-[240px]"
             />
           ) : (
             <div className="relative flex flex-col items-center gap-3">
@@ -83,7 +86,7 @@ export function PublicResult({ data }: { data: PublicResultData }) {
             <span className="text-body text-muted-foreground">{formatLongDate(data.createdAt)}</span>
           </div>
 
-          {data.imageUrl && <DownloadStripButton imageUrl={data.imageUrl} slug={data.slug} className="w-full @3xl:w-auto @3xl:px-6" />}
+          {data.imageUrl && <MemberDownload imageUrl={data.imageUrl} slug={data.slug} />}
 
           <div className="flex w-full flex-col gap-4 rounded-md bg-darkroom p-5 text-left text-kertas @3xl:p-6">
             <span className="flex items-center gap-3">

@@ -76,9 +76,9 @@ export type Database = {
         Relationships: []
       }
       reports: {
-        Row: { created_at: string; id: string; reason: string | null; result_id: string }
-        Insert: { created_at?: string; id?: string; reason?: string | null; result_id: string }
-        Update: { created_at?: string; id?: string; reason?: string | null; result_id?: string }
+        Row: { created_at: string; id: string; reason: string | null; reporter: string | null; result_id: string }
+        Insert: { created_at?: string; id?: string; reason?: string | null; reporter?: string | null; result_id: string }
+        Update: { created_at?: string; id?: string; reason?: string | null; reporter?: string | null; result_id?: string }
         Relationships: []
       }
       results: {
@@ -216,6 +216,7 @@ export type Database = {
       }
       get_public_result: { Args: { p_slug: string }; Returns: Json }
       get_room: { Args: { p_room: string }; Returns: Json }
+      is_result_member: { Args: { p_slug: string }; Returns: boolean }
       join_room: { Args: { p_code: string }; Returns: Json }
       leave_room: { Args: { p_room: string }; Returns: undefined }
       mock_upgrade: { Args: { p_room: string }; Returns: undefined }

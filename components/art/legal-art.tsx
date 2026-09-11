@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 import { FigureFill } from "./figure"
-import { useReducedMotion } from "./motion"
+import { liveProps, useInView, useReducedMotion } from "./motion"
 
 // Privasi: photostrip kalian di dalam amplop bersegel hati. Ketuk (atau hover)
 // = strip mengintip sebentar, lalu masuk lagi.
 export function SealedStrip({ className }: { className?: string }) {
   const reduced = useReducedMotion()
+  const [ref, inView] = useInView<HTMLSpanElement>(0.1)
   const [peek, setPeek] = useState(false)
   const timer = useRef<number>(undefined)
   useEffect(() => () => window.clearTimeout(timer.current), [])
@@ -21,7 +22,13 @@ export function SealedStrip({ className }: { className?: string }) {
   }
 
   return (
-    <span aria-hidden onPointerDown={open} className={cn("group relative block aspect-[5/6] w-full cursor-pointer select-none", className)}>
+    <span
+      ref={ref}
+      aria-hidden
+      {...liveProps(inView)}
+      onPointerDown={open}
+      className={cn("group relative block aspect-[5/6] w-full cursor-pointer select-none", className)}
+    >
       <span className="absolute inset-0 animate-float">
         <svg viewBox="0 0 100 120" className="absolute inset-0 size-full">
           <path d="M6 50 L50 18 L94 50 Z" fill="#D3D0C7" />
@@ -60,11 +67,14 @@ export function SealedStrip({ className }: { className?: string }) {
 // Ketuk = dicap ulang.
 export function BoothTicket({ className }: { className?: string }) {
   const reduced = useReducedMotion()
+  const [ref, inView] = useInView<HTMLSpanElement>(0.1)
   const [stamp, setStamp] = useState(0)
 
   return (
     <span
+      ref={ref}
       aria-hidden
+      {...liveProps(inView)}
       onPointerDown={() => !reduced && setStamp((n) => n + 1)}
       className={cn("relative block aspect-[8/6] w-full cursor-pointer select-none", className)}
     >
