@@ -6,6 +6,7 @@ import { RotateCcwIcon } from "lucide-react"
 import { ErrorArt } from "@/components/art/error-art"
 import { Button } from "@/components/ui/button"
 import { ERROR_COPY } from "@/lib/content/errors"
+import { createRoomError } from "@/lib/content/room-start"
 import { warn } from "@/lib/toast"
 import { useSession } from "@/stores/session"
 import { CameraHelpSheet } from "../camera-help-sheet"
@@ -31,8 +32,8 @@ export function ErrorScreen() {
     }
     try {
       router.replace(`/r/${await createRoom()}`)
-    } catch {
-      warn("Belum bisa bikin room, coba lagi sebentar")
+    } catch (e) {
+      warn(createRoomError(e))
     }
   }
 

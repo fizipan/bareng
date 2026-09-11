@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { BoothLoader } from "@/components/art/booth-loader"
+import { createRoomError } from "@/lib/content/room-start"
+import { warn } from "@/lib/toast"
 import { useSession } from "@/stores/session"
 
 // Tujuan shortcut "Mulai foto bareng" dari ikon aplikasi: langsung bikin room.
@@ -16,7 +18,10 @@ export function StartScreen() {
     started.current = true
     createRoom()
       .then((code) => router.replace(`/r/${code}`))
-      .catch(() => router.replace("/"))
+      .catch((e) => {
+        warn(createRoomError(e))
+        router.replace("/")
+      })
   }, [createRoom, router])
 
   return (

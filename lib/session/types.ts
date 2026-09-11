@@ -47,8 +47,21 @@ export type SessionState = {
   framesReady: boolean
   retakeQueue: number[]
   selected: number[]
-  paywall: { open: boolean; pendingTemplateId: string | null; paying: boolean }
+  paywall: Paywall
   result: SessionResult | null
+}
+
+// Tagihan QRIS yang sedang ditunggu (dari /api/payments).
+export type PaywallCharge = { orderId: string; amount: number; qr: string; expiresAt: number; test: boolean }
+// tawar = penawaran · memuat = membuat QR · qris = menunggu bayar · gagal = gagal/ditolak
+export type PaywallStep = "tawar" | "memuat" | "qris" | "gagal"
+export type Paywall = {
+  open: boolean
+  pendingTemplateId: string | null
+  step: PaywallStep
+  charge: PaywallCharge | null
+  // Tombol simulasi (mode uji) sedang diproses.
+  simulating: boolean
 }
 
 export type SessionActions = {
@@ -79,6 +92,7 @@ export type SessionActions = {
   openPaywall: () => void
   closePaywall: () => void
   pay: () => void
+  simulatePayment: (outcome: "paid" | "failed") => void
   toggleSound: () => void
   errorAction: () => void
   reset: () => void

@@ -3,6 +3,7 @@
 import type { ErrorKind } from "@/lib/content/errors"
 import { ensureSession, supabase } from "@/lib/supabase/client"
 import { roomSnapshotSchema, type RoomSnapshot } from "./room-state"
+import type { PaywallCharge } from "./types"
 
 // Error dari RPC (raise exception '<kode>') → jenis error UI.
 export class RoomError extends Error {
@@ -37,6 +38,19 @@ async function call<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
   return data
 }
 
+// Route server (pembayaran): token sesi anonim ikut sebagai Bearer.
+async function post<T>(path: string, body: object): Promise<T> {
+  const session = await ensureSession()
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify(body),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new RoomError(typeof data.error === "string" ? data.error : "failed", null)
+  return data as T
+}
+
 export const api = {
   createRoom: () => call<{ room_id: string; code: string }>("create_room"),
   joinRoom: (code: string) =>
@@ -56,7 +70,10 @@ export const api = {
   requestRetake: (roomId: string, indices: number[]) => call<void>("request_retake", { p_room: roomId, p_indices: indices }),
   finishSession: (roomId: string) => call<string>("finish_session", { p_room: roomId }),
   leaveRoom: (roomId: string) => call<void>("leave_room", { p_room: roomId }),
-  mockUpgrade: (roomId: string) => call<void>("mock_upgrade", { p_room: roomId }),
+  startPayment: (roomId: string, templateId: string | null) =>
+    post<PaywallCharge>("/api/payments", { roomId, templateId }),
+  simulatePayment: (orderId: string, outcome: "paid" | "failed") =>
+    post<{ ok: boolean; status?: string }>("/api/payments/mock", { orderId, outcome }),
   deleteResult: (slug: string) => call<void>("delete_result", { p_slug: slug }),
   setResultImage: (slug: string, path: string) => call<void>("set_result_image", { p_slug: slug, p_path: path }),
   // Buang file hasil yang baru dihapus sekarang juga (bukan menunggu jadwal).

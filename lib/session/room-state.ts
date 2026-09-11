@@ -220,8 +220,10 @@ export function partnerEventMessage(event: RoomEvent, partnerName: string, templ
       return list ? `${partnerName} minta ulang foto ${list}` : null
     }
     // "done" tanpa toast: layar hasil sudah bilang "Jadi!".
+    case "paying":
+      return `${partnerName} membuka pembayaran premium`
     case "upgraded":
-      return "Sesi jadi premium"
+      return `${partnerName} sudah bayar, sesi kalian jadi premium`
     case "left":
       return `${partnerName} keluar dari room`
     case "deleted":

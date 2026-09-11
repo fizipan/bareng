@@ -124,7 +124,7 @@ test("dua orang: buat room, gabung, foto serentak, ulang, hasil", async ({ brows
   await host.page.getByRole("radio", { name: /Polaroid ganda/ }).click()
   await expect(guest.page.getByText("Rara ganti template ke Polaroid ganda")).toBeVisible()
   await guest.page.getByRole("radio", { name: /Y2K neon/ }).click()
-  await expect(guest.page.getByRole("heading", { name: "Simpan tanpa watermark" })).toBeVisible()
+  await expect(guest.page.getByRole("heading", { name: "Y2K neon khusus premium" })).toBeVisible()
   await guest.page.getByRole("button", { name: "Lanjut dengan watermark" }).click()
 
   // Dua-duanya siap → sesi foto mulai di dua layar.
@@ -226,10 +226,18 @@ test("dua orang: buat room, gabung, foto serentak, ulang, hasil", async ({ brows
   expect(ogRes.status()).toBe(200)
   expect(ogRes.headers()["content-type"]).toBe("image/jpeg")
 
-  // Premium dari layar hasil → render ulang HD (2160 px) tanpa watermark.
+  // Premium dari layar hasil: QRIS (mode uji) → webhook → dua HP jadi premium
+  // (PRD: < 3 detik), lalu render ulang HD (2160 px) tanpa watermark.
   await host.page.getByRole("button", { name: /Lihat premium/ }).click()
   await host.page.getByRole("button", { name: /^Bayar/ }).click()
-  await expect(host.page.getByText("Sesi premium aktif.", { exact: false })).toBeVisible({ timeout: 15_000 })
+  await expect(host.page.getByRole("img", { name: "Kode QR pembayaran" })).toBeVisible({ timeout: 15_000 })
+  await expect(guest.page.getByText("membuka pembayaran premium", { exact: false })).toBeVisible()
+  const paidAt = Date.now()
+  await host.page.getByRole("button", { name: "Simulasikan bayar" }).click()
+  await expect(guest.page.getByText("Sesi premium aktif.", { exact: false })).toBeVisible({ timeout: 10_000 })
+  expect.soft(Date.now() - paidAt, "premium sampai HP pasangan").toBeLessThan(3000)
+  await expect(host.page.getByText("Sesi premium aktif.", { exact: false })).toBeVisible()
+  await expect(host.page.getByRole("img", { name: "Kode QR pembayaran" })).toHaveCount(0)
   await expect.poll(stripSrc, { timeout: 40_000 }).toContain("/polaroid-none-premium.jpg")
   await expect.poll(() => strip.evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBe(2160)
 
@@ -247,6 +255,41 @@ test("dua orang: buat room, gabung, foto serentak, ulang, hasil", async ({ brows
   await expect
     .poll(async () => (await publicPage.request.get(`${imageUrl}?t=${Date.now()}`)).status(), { timeout: 20_000 })
     .not.toBe(200)
+
+  expect(host.errors).toEqual([])
+  expect(guest.errors).toEqual([])
+  await host.close()
+  await guest.close()
+})
+
+test("template premium di lobby: gagal bayar aman, lunas → dipakai berdua", async ({ browser, baseURL }) => {
+  test.setTimeout(120_000)
+  const host = await newPhone(browser, baseURL)
+  const guest = await newPhone(browser, baseURL)
+  const code = await createRoom(host.page)
+  await guest.page.goto(`/r/${code}`)
+  await allowCamera(guest.page)
+  await allowCamera(host.page)
+
+  const y2k = (page: Page) => page.getByRole("radio", { name: /Y2K neon/ })
+  await y2k(host.page).click()
+  await expect(host.page.getByRole("heading", { name: "Y2K neon khusus premium" })).toBeVisible()
+  await host.page.getByRole("button", { name: /^Bayar/ }).click()
+  await expect(host.page.getByRole("img", { name: "Kode QR pembayaran" })).toBeVisible({ timeout: 15_000 })
+
+  // Gagal: room tetap gratis, template tidak berubah.
+  await host.page.getByRole("button", { name: "Simulasikan gagal" }).click()
+  await expect(host.page.getByRole("heading", { name: "Pembayaran belum berhasil" })).toBeVisible({ timeout: 10_000 })
+  await expect(y2k(guest.page)).not.toBeChecked()
+
+  // Coba lagi → QR baru → lunas: template premium langsung dipakai di dua HP.
+  await host.page.getByRole("button", { name: "Coba lagi" }).click()
+  await expect(host.page.getByRole("img", { name: "Kode QR pembayaran" })).toBeVisible({ timeout: 15_000 })
+  await host.page.getByRole("button", { name: "Simulasikan bayar" }).click()
+  await expect(host.page.getByText("Pembayaran berhasil, sesi jadi premium")).toBeVisible({ timeout: 10_000 })
+  await expect(guest.page.getByText("sudah bayar, sesi kalian jadi premium", { exact: false })).toBeVisible()
+  await expect(y2k(host.page)).toBeChecked()
+  await expect(y2k(guest.page)).toBeChecked()
 
   expect(host.errors).toEqual([])
   expect(guest.errors).toEqual([])

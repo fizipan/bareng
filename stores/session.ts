@@ -18,10 +18,11 @@ import {
   type RoomSnapshot,
   type ServerShot,
 } from "@/lib/session/room-state"
-import type { DevActions, Screen, SessionActions, SessionState } from "@/lib/session/types"
+import type { DevActions, Paywall, Screen, SessionActions, SessionState } from "@/lib/session/types"
 import { measureOffset } from "@/lib/sync/clock"
 import { getFilter } from "@/lib/templates/filters"
 import { DEFAULT_TEMPLATE_ID, getTemplate } from "@/lib/templates/builtin"
+import { PREMIUM_PRICE } from "@/lib/content/pricing"
 import { formatLongDate, formatStripDate } from "@/lib/format"
 import { saveImage } from "@/lib/save-file"
 import { playShutter, playTick, unlockSounds } from "@/lib/sounds"
@@ -37,6 +38,8 @@ import { usePwa } from "@/stores/pwa"
 // di stores/media.ts. Aksi dev* hanya untuk /dev/screens.
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+const closedPaywall = (): Paywall => ({ open: false, pendingTemplateId: null, step: "tawar", charge: null, simulating: false })
+const openedPaywall = (pendingTemplateId: string | null = null): Paywall => ({ ...closedPaywall(), open: true, pendingTemplateId })
 const EMPTY_FRAMES = [null, null, null, null]
 const PARTNER_GRACE_MS = 3000
 // Capture boleh telat sedikit (timer tersendat); lewat 1 dtk, shot diulang
@@ -84,7 +87,7 @@ function initialState(): SessionState & Local {
     framesReady: true,
     retakeQueue: [],
     selected: [],
-    paywall: { open: false, pendingTemplateId: null, paying: false },
+    paywall: closedPaywall(),
     result: null,
     roomId: null,
     participantId: null,
@@ -191,6 +194,7 @@ export const useSession = create<Store>()((set, get) => {
       images: frameImages(),
     })
     const leavingReview = s.screen === "review" && view.screen !== "review"
+    const upgraded = s.tier !== "premium" && view.tier === "premium"
     set({
       code: view.code,
       role: view.role,
@@ -215,6 +219,16 @@ export const useSession = create<Store>()((set, get) => {
     if (event?.by && event.by !== s.participantId) {
       const msg = partnerEventMessage(event, view.partner?.name ?? "Dia", (id) => getTemplate(id).name)
       if (msg) notify(msg)
+    }
+    // Lunas (webhook → broadcast, atau snapshot hasil resync): paywall tutup
+    // di dua HP; yang bayar dapat konfirmasi, pasangannya pesan dari atas.
+    if (upgraded) {
+      const mine = event ? event.type === "upgraded" && event.by === s.participantId : s.paywall.open
+      if (s.paywall.open) set({ paywall: closedPaywall() })
+      if (mine) notify("Pembayaran berhasil, sesi jadi premium")
+    }
+    if (event?.type === "payment_failed" && s.paywall.open && event.order === s.paywall.charge?.orderId) {
+      set({ paywall: { ...get().paywall, step: "gagal", simulating: false } })
     }
     syncTicker()
   }
@@ -726,7 +740,7 @@ export const useSession = create<Store>()((set, get) => {
       const t = getTemplate(id)
       const s = get()
       if (t.tier === "premium" && s.tier !== "premium") {
-        set({ paywall: { open: true, pendingTemplateId: t.id, paying: false } })
+        set({ paywall: openedPaywall(t.id) })
         return
       }
       if (s.templateId === t.id) return
@@ -832,29 +846,56 @@ export const useSession = create<Store>()((set, get) => {
       notify("Foto dihapus")
     },
 
-    openPaywall: () => set({ paywall: { open: true, pendingTemplateId: null, paying: false } }),
+    openPaywall: () => set({ paywall: openedPaywall() }),
     closePaywall: () => {
-      if (get().paywall.paying) return
-      set({ paywall: { open: false, pendingTemplateId: null, paying: false } })
+      if (get().paywall.step === "memuat") return
+      set({ paywall: closedPaywall() })
     },
-    // M6: MockProvider + webhook → session_upgraded. Sekarang langsung upgrade room.
+    // Buka tagihan QRIS (route server → provider). Lunas hanya lewat webhook;
+    // hasilnya datang sebagai broadcast `upgraded` ke dua HP.
     pay: async () => {
       const s = get()
-      if (s.paywall.paying) return
-      set({ paywall: { ...s.paywall, paying: true } })
+      if (s.paywall.step === "memuat") return
+      set({ paywall: { ...s.paywall, step: "memuat", charge: null, simulating: false } })
       try {
-        if (s.roomId) {
-          await api.mockUpgrade(room())
-          const pending = get().paywall.pendingTemplateId
-          if (pending) await api.setTemplate(room(), pending)
-        } else {
-          set({ tier: "premium", templateId: get().paywall.pendingTemplateId ?? get().templateId })
+        const charge = s.roomId
+          ? await api.startPayment(room(), s.paywall.pendingTemplateId)
+          : // /dev/screens: tanpa room, tagihan contoh.
+            { orderId: "BRG-CONTOHCONTOH", amount: PREMIUM_PRICE, qr: "BARENG-UJI|contoh", expiresAt: Date.now() + 15 * 60_000, test: true }
+        if (!get().paywall.open) return
+        set({ paywall: { ...get().paywall, step: "qris", charge } })
+      } catch (e) {
+        if (e instanceof RoomError && e.code === "already_premium") {
+          set({ paywall: closedPaywall() })
+          void resync()
+          return
         }
-        set({ paywall: { open: false, pendingTemplateId: null, paying: false } })
-        notify("Pembayaran berhasil — sesi jadi premium")
+        set({ paywall: { ...get().paywall, step: "tawar" } })
+        warn("Belum bisa membuat QR pembayaran, coba lagi")
+      }
+    },
+    // Mode uji: tiru notifikasi gateway (lunas/gagal) lewat webhook yang sama.
+    simulatePayment: async (outcome) => {
+      const s = get()
+      const charge = s.paywall.charge
+      if (!charge || s.paywall.simulating) return
+      set({ paywall: { ...s.paywall, simulating: true } })
+      if (!s.roomId) {
+        if (outcome === "failed") return set({ paywall: { ...get().paywall, step: "gagal", simulating: false } })
+        set({ tier: "premium", templateId: s.paywall.pendingTemplateId ?? s.templateId, paywall: closedPaywall() })
+        notify("Pembayaran berhasil, sesi jadi premium")
+        return
+      }
+      try {
+        const res = await api.simulatePayment(charge.orderId, outcome)
+        if (res.status === "failed" && get().paywall.charge?.orderId === charge.orderId) {
+          set({ paywall: { ...get().paywall, step: "gagal", simulating: false } })
+        }
+        // Cadangan kalau broadcast telat: ambil state terbaru dari server.
+        if (res.status === "paid") await resync()
       } catch {
-        set({ paywall: { ...get().paywall, paying: false } })
-        warn("Pembayaran belum berhasil, foto kalian tetap aman")
+        set({ paywall: { ...get().paywall, simulating: false } })
+        warn("Simulasi pembayaran gagal dikirim")
       }
     },
 
@@ -907,7 +948,7 @@ export const useSession = create<Store>()((set, get) => {
         participantId: null,
         me: { ...s.me, ready: false },
         partner: { name: s.role === "host" ? "Dimas" : "Rara", ready: false, joined: screen !== "undang" },
-        paywall: { open: false, pendingTemplateId: null, paying: false },
+        paywall: closedPaywall(),
         shot: { ...s.shot, phase: "idle" },
         selected: [],
         retakeQueue: [],
@@ -924,7 +965,7 @@ export const useSession = create<Store>()((set, get) => {
       set(base)
     },
     devSetTier: (tier) => {
-      set({ tier, paywall: { open: false, pendingTemplateId: null, paying: false } })
+      set({ tier, paywall: closedPaywall() })
       notify(tier === "premium" ? "Sesi premium aktif" : "Sesi kembali gratis")
     },
     devSetConn: (conn) => {

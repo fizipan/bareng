@@ -6,6 +6,7 @@ import { ArrowRightIcon, PlusIcon } from "lucide-react"
 import { Logo } from "@/components/brand/logo"
 import { MiniStrip } from "@/components/art/mini-strip"
 import { Button } from "@/components/ui/button"
+import { createRoomError } from "@/lib/content/room-start"
 import { warn } from "@/lib/toast"
 import { useSession } from "@/stores/session"
 import { BackButton } from "../back-button"
@@ -63,8 +64,8 @@ export function JoinScreen() {
             onClick={async () => {
               try {
                 router.push(`/r/${await createRoom()}`)
-              } catch {
-                warn("Belum bisa bikin room, coba lagi sebentar")
+              } catch (e) {
+                warn(createRoomError(e))
               }
             }}
           >

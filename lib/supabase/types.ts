@@ -221,6 +221,12 @@ export type Database = {
       landing_stats: { Args: never; Returns: Json }
       leave_room: { Args: { p_room: string }; Returns: undefined }
       mock_upgrade: { Args: { p_room: string }; Returns: undefined }
+      payment_open: {
+        Args: { p_user: string; p_room: string; p_template: string | null; p_provider: string; p_amount: number }
+        Returns: Json
+      }
+      payment_attach: { Args: { p_order: string; p_provider_ref: string; p_qr: string }; Returns: undefined }
+      payment_settle: { Args: { p_order: string; p_status: string; p_raw?: Json }; Returns: Json }
       file_report: { Args: { p_note?: string; p_reason?: string; p_slug: string }; Returns: Json }
       admin_report_queue: { Args: never; Returns: Json }
       admin_feedback_list: { Args: never; Returns: Json }
