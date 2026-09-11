@@ -23,6 +23,7 @@ import { measureOffset } from "@/lib/sync/clock"
 import { getFilter } from "@/lib/templates/filters"
 import { DEFAULT_TEMPLATE_ID, getTemplate } from "@/lib/templates/builtin"
 import { formatLongDate, formatStripDate } from "@/lib/format"
+import { saveImage } from "@/lib/save-file"
 import { playShutter, playTick, unlockSounds } from "@/lib/sounds"
 import { canvasToJpeg, FREE_WIDTH, PREMIUM_WIDTH, renderStrip } from "@/lib/templates/render"
 import { renderShareCard } from "@/lib/templates/share-card"
@@ -150,17 +151,6 @@ function clearComposites() {
   composites.clear()
   publishing.clear()
   publishJob = null
-}
-
-function saveBlob(blob: Blob, name: string) {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = name
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 10_000)
 }
 
 function clearShots() {
@@ -808,13 +798,7 @@ export const useSession = create<Store>()((set, get) => {
       }
       try {
         const { strip } = await buildComposite(renderKeyOf(s))
-        const name = `bareng-${s.result.slug}.jpg`
-        const file = new File([strip], name, { type: "image/jpeg" })
-        if (usePwa.getState().ios && navigator.canShare?.({ files: [file] })) {
-          await navigator.share({ files: [file], title: "Photostrip kami" })
-        } else {
-          saveBlob(strip, name)
-        }
+        await saveImage(strip, `bareng-${s.result.slug}.jpg`, { ios: usePwa.getState().ios, title: "Photostrip kami" })
         notify(saved)
       } catch (e) {
         if ((e as DOMException)?.name === "AbortError") return
