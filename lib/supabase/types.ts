@@ -220,7 +220,6 @@ export type Database = {
       join_room: { Args: { p_code: string }; Returns: Json }
       landing_stats: { Args: never; Returns: Json }
       leave_room: { Args: { p_room: string }; Returns: undefined }
-      mock_upgrade: { Args: { p_room: string }; Returns: undefined }
       payment_open: {
         Args: { p_user: string; p_room: string; p_template: string | null; p_provider: string; p_amount: number }
         Returns: Json
