@@ -4,6 +4,7 @@ import { useId, useState } from "react"
 import { BugIcon, CheckIcon, CircleHelpIcon, LightbulbIcon, MessageSquareIcon, SendIcon, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { FEEDBACK_KINDS, FEEDBACK_MAX, FEEDBACK_MIN, type FeedbackKind } from "@/lib/content/feedback"
+import { collectDeviceInfo } from "@/lib/device-info"
 import { supabase } from "@/lib/supabase/client"
 import { warn } from "@/lib/toast"
 import { cn } from "@/lib/utils"
@@ -34,7 +35,7 @@ export function FeedbackForm({
   const [message, setMessage] = useState("")
   const [roomCode, setRoomCode] = useState((initialRoom ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6))
   const [email, setEmail] = useState("")
-  const [website, setWebsite] = useState("")
+  const [trap, setTrap] = useState("")
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
 
@@ -46,12 +47,12 @@ export function FeedbackForm({
     e.preventDefault()
     if (tooShort || !codeOk || sending) return
     setSending(true)
-    const { data } = await supabase().auth.getSession()
+    const [{ data }, meta] = await Promise.all([supabase().auth.getSession(), collectDeviceInfo().catch(() => ({}))])
     const token = data.session?.access_token
     const res = await fetch("/api/feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify({ kind, message, email, roomCode, page: location.pathname, website }),
+      body: JSON.stringify({ kind, message, email, roomCode, page: location.pathname, meta, trap }),
     }).catch(() => null)
     setSending(false)
     if (res?.ok) {
@@ -177,16 +178,14 @@ export function FeedbackForm({
         </div>
       </div>
 
-      {/* Honeypot anti-bot: tidak terlihat & tidak bisa difokus. */}
-      <input
-        tabIndex={-1}
-        aria-hidden
-        autoComplete="off"
-        name="website"
-        value={website}
-        onChange={(e) => setWebsite(e.target.value)}
-        className="absolute -left-[9999px] size-px opacity-0"
-      />
+      {/* Jebakan bot: disembunyikan total (display:none) supaya autofill browser
+          tidak mengisinya; nama yang tidak dikenali autofill. */}
+      <div hidden>
+        <label>
+          Jangan diisi
+          <input tabIndex={-1} autoComplete="off" name="bareng_hp" value={trap} onChange={(e) => setTrap(e.target.value)} />
+        </label>
+      </div>
 
       <div className="flex flex-col gap-2.5">
         <Button type="submit" disabled={tooShort || !codeOk || sending}>

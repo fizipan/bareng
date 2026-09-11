@@ -230,8 +230,10 @@ export type Database = {
           p_email?: string
           p_kind: string
           p_message: string
+          p_meta?: Json
           p_page?: string
           p_room_code?: string
+          p_suspect?: boolean
           p_user_agent?: string
         }
         Returns: Json

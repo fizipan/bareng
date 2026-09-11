@@ -19,7 +19,11 @@ test("pusat bantuan: isian dari link, kirim, tanda terima", async ({ page }) => 
   await page.getByLabel(/^Ceritakan/).fill("Tombol unduh nggak jalan di HP saya")
   const request = page.waitForRequest("**/api/feedback")
   await send.click()
-  expect((await request).postDataJSON()).toMatchObject({ kind: "bug", roomCode: "AB12CD", message: "Tombol unduh nggak jalan di HP saya" })
+  const body = (await request).postDataJSON()
+  expect(body).toMatchObject({ kind: "bug", roomCode: "AB12CD", message: "Tombol unduh nggak jalan di HP saya", trap: "" })
+  // Info perangkat ikut terkirim supaya bug gampang dicek admin.
+  expect(body.meta).toMatchObject({ browser: expect.any(String), os: expect.any(String), timezone: expect.any(String) })
+  expect(body.meta.screen).toMatch(/^\d+×\d+$/)
   await expect(page.getByText("Terima kasih, sudah kami terima")).toBeVisible()
 })
 

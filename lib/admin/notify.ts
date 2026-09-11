@@ -56,6 +56,7 @@ export async function emailFeedback(input: {
   roomCode: string | null
   page: string | null
   userAgent: string | null
+  device?: string | null
 }) {
   const key = process.env.RESEND_API_KEY
   const to = process.env.ADMIN_EMAIL
@@ -69,7 +70,8 @@ export async function emailFeedback(input: {
     input.email && `Email: <a href="mailto:${escape(input.email)}">${escape(input.email)}</a>`,
     input.roomCode && `Kode room: <b>${escape(input.roomCode)}</b>`,
     input.page && `Halaman: ${escape(input.page)}`,
-    input.userAgent && `Perangkat: <span style="color:#5F5D69">${escape(input.userAgent)}</span>`,
+    input.device && `Perangkat: ${escape(input.device)}`,
+    input.userAgent && `<span style="color:#5F5D69">${escape(input.userAgent)}</span>`,
   ].filter(Boolean)
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
