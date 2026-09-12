@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog"
 import { SITE_HOST } from "@/lib/brand"
 import { PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
-import { formatLongDate, formatStripDate } from "@/lib/format"
+import { daysLeft, formatLongDate, formatStripDate } from "@/lib/format"
 import { getFilter } from "@/lib/templates/filters"
 import { getTemplate } from "@/lib/templates/builtin"
 import { warn } from "@/lib/toast"
@@ -42,7 +42,7 @@ export function ResultScreen() {
   const template = getTemplate(s.templateId)
   const isFree = s.tier !== "premium"
   const date = s.result ? new Date(s.result.createdAt) : new Date()
-  const keepUntil = s.result?.expiresAt ? formatLongDate(new Date(s.result.expiresAt)) : null
+  const expiresAt = s.result?.expiresAt ? new Date(s.result.expiresAt).getTime() : null
 
   // Tunggu photostrip terunggah dulu supaya link yang sudah dibagikan tidak kosong.
   const restart = async () => {
@@ -157,10 +157,10 @@ export function ResultScreen() {
                   Lihat premium — {PREMIUM_PRICE_LABEL}
                 </Button>
               </div>
-              {keepUntil && (
-                <span className="flex items-center justify-center gap-1.5 text-caption text-muted-foreground @3xl:justify-start">
-                  <ClockIcon aria-hidden className="size-3.5" />
-                  Versi gratis tersimpan sampai {keepUntil}.
+              {expiresAt && (
+                <span className="flex items-center justify-center gap-1.5 text-caption text-soft-foreground @3xl:justify-start">
+                  <ClockIcon aria-hidden className="size-3.5 text-shutter" />
+                  Versi gratis hilang {daysLeft(expiresAt)}, tanggal {formatLongDate(new Date(expiresAt))}.
                 </span>
               )}
             </div>

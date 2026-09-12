@@ -66,6 +66,9 @@ export type Paywall = {
   simulating: boolean
 }
 
+// Dua pratinjau kecil photostrip sendiri untuk paywall (object URL).
+export type PreviewPair = { free: string; premium: string }
+
 export type SessionActions = {
   createRoom: (opts?: { premium?: boolean }) => Promise<string>
   enterRoom: (code: string) => Promise<void>
@@ -91,6 +94,7 @@ export type SessionActions = {
   share: () => void
   copyResultLink: () => void
   deleteResult: () => Promise<void>
+  previewStrips: () => Promise<PreviewPair | null>
   openPaywall: () => void
   closePaywall: () => void
   pay: () => void

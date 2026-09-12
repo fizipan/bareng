@@ -8,7 +8,7 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/compone
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { SITE_HOST } from "@/lib/brand"
 import { PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
-import type { PaywallCharge } from "@/lib/session/types"
+import type { PaywallCharge, PreviewPair } from "@/lib/session/types"
 import { getTemplate } from "@/lib/templates/builtin"
 import { lookBackground } from "@/lib/templates/placeholder"
 import { cn } from "@/lib/utils"
@@ -99,12 +99,35 @@ function OfferStep() {
   const needsPremium = useSession((s) => s.needsPremium)
   const pay = useSession((s) => s.pay)
   const closePaywall = useSession((s) => s.closePaywall)
+  const previewStrips = useSession((s) => s.previewStrips)
+  // Photostrip mereka sendiri (dengan & tanpa watermark) kalau fotonya sudah
+  // ada; sebelum foto (mis. dari lobby) tetap pakai contoh.
+  const [pair, setPair] = useState<PreviewPair | null>(null)
+  useEffect(() => {
+    let alive = true
+    previewStrips().then(
+      (p) => alive && setPair(p),
+      () => {}
+    )
+    return () => {
+      alive = false
+    }
+  }, [previewStrips])
 
   return (
     <>
       <div className="flex justify-center gap-4" aria-hidden>
-        <CompareStrip label="Gratis" watermark />
-        <CompareStrip label="Premium" />
+        {pair ? (
+          <>
+            <OwnStrip label="Gratis" src={pair.free} />
+            <OwnStrip label="Premium" src={pair.premium} />
+          </>
+        ) : (
+          <>
+            <CompareStrip label="Gratis" watermark />
+            <CompareStrip label="Premium" />
+          </>
+        )}
       </div>
       <div className="flex items-baseline gap-2">
         <span className="font-display text-display-md font-semibold">{PREMIUM_PRICE_LABEL}</span>
@@ -225,6 +248,22 @@ function FailedStep() {
         </Button>
       </div>
     </>
+  )
+}
+
+// Photostrip asli mereka, kecil saja: cukup untuk melihat bedanya.
+function OwnStrip({ label, src }: { label: string; src: string }) {
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt=""
+        draggable={false}
+        className="w-[88px] rounded-[3px] shadow-strip select-none [-webkit-touch-callout:none]"
+      />
+      <span className={cn("text-caption", label === "Gratis" ? "text-muted-foreground" : "text-foreground")}>{label}</span>
+    </div>
   )
 }
 

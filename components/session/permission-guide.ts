@@ -5,7 +5,7 @@ export type Guide = { browser: string; steps: string[]; note?: string }
 
 // Panduan menyalakan izin kamera/mic per browser (PRD R2). Deteksi kasar dari
 // user agent; kalau tidak dikenali, langkah umum Chrome/Edge.
-export function guideFor(device: Device): Guide {
+export function guideFor(device: Device, state?: PermissionState | "unsupported"): Guide {
   const ua = navigator.userAgent
   const touch = navigator.maxTouchPoints > 1
   const lower = device.toLowerCase()
@@ -13,6 +13,8 @@ export function guideFor(device: Device): Guide {
   // Browser di dalam aplikasi (link dibuka dari chat/sosmed) sering memblokir
   // kamera & mic, dan tidak punya setelan izin sama sekali.
   const inApp = parseUserAgent(ua).inApp
+  const samsung = /SamsungBrowser/.test(ua)
+  const appName = samsung ? "Samsung Internet" : ios ? "Safari" : "Chrome"
   if (inApp) {
     return {
       browser: `Browser dalam ${inApp}`,
@@ -22,6 +24,30 @@ export function guideFor(device: Device): Guide {
         "Kalau tidak ada pilihannya: salin link room ini, lalu tempel di Chrome atau Safari.",
       ],
       note: "Link room tetap sama, jadi kamu tidak perlu bikin ulang.",
+    }
+  }
+  // Ditolak seketika padahal izin situs masih "prompt": biasanya aplikasi
+  // browsernya sendiri yang belum dikasih izin di setelan HP.
+  if (state === "prompt" && /Android/.test(ua)) {
+    return {
+      browser: "Izin di setelan HP",
+      steps: [
+        `Buka Setelan HP → Aplikasi → ${appName} → Izin.`,
+        `Nyalakan ${device}, lalu balik ke sini.`,
+        "Ketuk “Sudah, coba lagi” di bawah.",
+      ],
+      note: `Kalau di setelan HP sudah nyala: ketuk ikon di kiri alamat web → Izin → ${device} → Izinkan.`,
+    }
+  }
+  if (state === "prompt" && ios) {
+    return {
+      browser: "Izin di Pengaturan iPhone",
+      steps: [
+        `Buka Pengaturan iPhone → Privasi & Keamanan → ${device}.`,
+        `Nyalakan ${appName}, lalu balik ke sini.`,
+        "Ketuk “Sudah, coba lagi” di bawah.",
+      ],
+      note: `Kalau sudah nyala: ketuk aA di sebelah alamat web → Pengaturan Situs Web → ${device} → Izinkan.`,
     }
   }
   if (ios && /CriOS|FxiOS|EdgiOS/.test(ua)) {

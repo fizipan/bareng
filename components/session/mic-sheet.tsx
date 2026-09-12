@@ -52,10 +52,13 @@ const FAILURES: Record<Exclude<CameraFailure, "denied">, { title: string; body: 
 // pop-up izin, dan panduan per browser kalau diblokir. Mic tetap opsional.
 export function MicSheet({
   step,
+  permission,
   onClose,
   onAllow,
 }: {
   step: MicStep | null
+  // Status izin situs; dipakai untuk menebak penyebab kalau mic ditolak.
+  permission?: PermissionState | "unsupported"
   onClose: () => void
   onAllow: () => void
 }) {
@@ -67,7 +70,7 @@ export function MicSheet({
   if (step && step !== shown) setShown(step)
 
   const onOpenChange = (open: boolean) => !open && onClose()
-  const body = <MicBody step={shown} desktop={desktop} onAllow={onAllow} onClose={onClose} />
+  const body = <MicBody step={shown} permission={permission} desktop={desktop} onAllow={onAllow} onClose={onClose} />
 
   if (desktop) {
     return (
@@ -91,11 +94,13 @@ export function MicSheet({
 
 function MicBody({
   step,
+  permission,
   desktop,
   onAllow,
   onClose,
 }: {
   step: MicStep
+  permission?: PermissionState | "unsupported"
   desktop: boolean
   onAllow: () => void
   onClose: () => void
@@ -164,7 +169,7 @@ function MicBody({
   }
 
   if (step === "denied") {
-    const guide = guideFor("Mikrofon")
+    const guide = guideFor("Mikrofon", permission)
     return (
       <>
         {header(

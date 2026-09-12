@@ -8,6 +8,7 @@ import { SITE_HOST } from "@/lib/brand"
 import { formatLongDate, formatStripDate } from "@/lib/format"
 import type { Frame } from "@/lib/session/types"
 import { getTemplate } from "@/lib/templates/builtin"
+import { KeepForever } from "./keep-forever"
 import { CopyPageLink, MemberDownload } from "./public-actions"
 import { ReportButton } from "./report-button"
 
@@ -17,6 +18,8 @@ export type PublicResultData = {
   filter?: string
   names: string | null
   createdAt: Date
+  // Kapan photostrip gratis ini hilang; null = tersimpan selamanya.
+  expiresAt?: number | null
   // File photostrip jadi; null selama HP masih mengunggahnya.
   imageUrl?: string | null
   // Pola contoh untuk galeri dev.
@@ -87,6 +90,7 @@ export function PublicResult({ data }: { data: PublicResultData }) {
           </div>
 
           {data.imageUrl && <MemberDownload imageUrl={data.imageUrl} slug={data.slug} />}
+          {data.expiresAt && <KeepForever slug={data.slug} expiresAt={data.expiresAt} />}
 
           <div className="flex w-full flex-col gap-4 rounded-md bg-darkroom p-5 text-left text-kertas @3xl:p-6">
             <span className="flex items-center gap-3">

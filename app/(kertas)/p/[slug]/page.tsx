@@ -28,6 +28,7 @@ export default async function PublicResultPage({ params }: PageProps<"/p/[slug]"
         templateId: row.template_id,
         names: row.names,
         createdAt: new Date(row.created_at),
+        expiresAt: row.expires_at,
         imageUrl: row.image_path ? publicResultUrl(row.image_path) : null,
       }}
     />

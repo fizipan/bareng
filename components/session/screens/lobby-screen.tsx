@@ -45,11 +45,15 @@ export function LobbyScreen() {
   // Hasil percobaan mic ikut dicatat (tanpa data pribadi): kalau ada HP yang
   // selalu gagal, penyebabnya kelihatan di Statistik.
   const noteMic = (result: string) =>
-    track(s.roomId, "mic_result", {
-      result,
-      izin: micPermission,
-      inApp: parseUserAgent(navigator.userAgent).inApp ?? "tidak",
-    })
+    {
+      const ua = parseUserAgent(navigator.userAgent)
+      track(s.roomId, "mic_result", {
+        result,
+        izin: micPermission,
+        inApp: ua.inApp ?? "tidak",
+        hp: [ua.model ?? ua.browser, ua.os].filter(Boolean).join(" · "),
+      })
+    }
 
   const allowMic = async () => {
     const retry = micStep === "denied"
@@ -239,6 +243,7 @@ export function LobbyScreen() {
 
       <MicSheet
         step={micStep}
+        permission={micPermission}
         onAllow={allowMic}
         onClose={() => {
           if (micStep === "waiting") closedWhileWaiting.current = true

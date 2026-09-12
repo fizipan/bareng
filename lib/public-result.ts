@@ -9,6 +9,8 @@ export type PublicRow = {
   watermark: boolean
   image_path: string | null
   created_at: number
+  // null = tersimpan selamanya (sesi premium).
+  expires_at: number | null
 }
 
 // Satu kali per request untuk halaman, metadata, dan gambar pratinjau.

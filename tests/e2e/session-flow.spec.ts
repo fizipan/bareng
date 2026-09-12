@@ -215,6 +215,7 @@ test("dua orang: buat room, gabung, foto serentak, ulang, hasil", async ({ brows
   await expect(stranger.page.getByRole("heading", { name: "Rara & Dimas" })).toBeVisible()
   await stranger.page.waitForTimeout(1_500)
   await expect(stranger.page.getByRole("button", { name: "Unduh photostrip" })).toHaveCount(0)
+  await expect(stranger.page.getByRole("button", { name: /^Simpan selamanya/ })).toHaveCount(0)
   await stranger.page.getByRole("button", { name: "Laporkan halaman ini" }).click()
   await expect(stranger.page.getByRole("button", { name: "Kirim laporan" })).toBeDisabled()
   // "Lainnya" wajib pakai catatan.
@@ -238,18 +239,26 @@ test("dua orang: buat room, gabung, foto serentak, ulang, hasil", async ({ brows
   expect(ogRes.status()).toBe(200)
   expect(ogRes.headers()["content-type"]).toBe("image/jpeg")
 
-  // Premium dari layar hasil: QRIS (mode uji) → webhook → dua HP jadi premium
-  // (PRD: < 3 detik), lalu render ulang HD (2160 px) tanpa watermark.
+  // Paywall di layar hasil memakai photostrip mereka sendiri (dengan &
+  // tanpa watermark), bukan gambar contoh.
   await host.page.getByRole("button", { name: /Lihat premium/ }).click()
-  await host.page.getByRole("button", { name: /^Bayar/ }).click()
-  await expect(host.page.getByRole("img", { name: "Kode QR pembayaran" })).toBeVisible({ timeout: 15_000 })
-  await expect(guest.page.getByText("membuka pembayaran premium", { exact: false })).toBeVisible()
+  const paywall = host.page.getByRole("dialog")
+  await expect(paywall.locator("img[src^='blob:']")).toHaveCount(2, { timeout: 20_000 })
+  await host.page.getByRole("button", { name: "Lanjut dengan watermark" }).click()
+
+  // "Simpan selamanya" dari halaman publik: cuma muncul untuk mereka berdua,
+  // lengkap dengan batas waktu hasil gratis. Bayar di sini (QRIS mode uji) →
+  // webhook → dua HP jadi premium (PRD: < 3 detik) & render ulang HD.
+  await expect(publicPage.getByText("Hilang 7 hari lagi")).toBeVisible({ timeout: 15_000 })
+  await publicPage.getByRole("button", { name: /^Simpan selamanya/ }).click()
+  await expect(publicPage.getByRole("img", { name: "Kode QR pembayaran" })).toBeVisible({ timeout: 15_000 })
   const paidAt = Date.now()
-  await host.page.getByRole("button", { name: "Simulasikan bayar" }).click()
-  await expect(guest.page.getByText("Sesi premium aktif.", { exact: false })).toBeVisible({ timeout: 10_000 })
+  await publicPage.getByRole("button", { name: "Simulasikan bayar" }).click()
+  // Sampai ke HP pasangan (device lain) lewat broadcast.
+  await expect(host.page.getByText("Sesi premium aktif.", { exact: false })).toBeVisible({ timeout: 10_000 })
   expect.soft(Date.now() - paidAt, "premium sampai HP pasangan").toBeLessThan(3000)
-  await expect(host.page.getByText("Sesi premium aktif.", { exact: false })).toBeVisible()
-  await expect(host.page.getByRole("img", { name: "Kode QR pembayaran" })).toHaveCount(0)
+  await expect(publicPage.getByRole("button", { name: /^Simpan selamanya/ })).toHaveCount(0, { timeout: 15_000 })
+  await expect(guest.page.getByText("Sesi premium aktif.", { exact: false })).toBeVisible()
   await expect.poll(stripSrc, { timeout: 40_000 }).toContain("/polaroid-none-premium.jpg")
   await expect.poll(() => strip.evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBe(2160)
 

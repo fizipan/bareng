@@ -29,12 +29,14 @@ const KEPT = [
   "Isi masukan yang kamu kirim lewat Pusat bantuan, beserta jenis browser & HP-mu (dan email kalau kamu isi)",
   "Nama dan kontak yang kamu tulis kalau kamu minta akses demo",
   "Catatan pembayaran kalau kamu beli sesi premium: nomor pesanan, jumlah, dan statusnya",
+  "Kode acak harian dari jaringanmu, buat membatasi penyalahgunaan. Kodenya berganti tiap hari dan tidak bisa dibalik jadi alamat aslinya",
 ]
 const NOT_KEPT = [
   "Rekaman video atau suara",
   "Isi obrolan kalian",
   "Nomor HP dan email",
   "Nomor kartu atau rekening — bayarnya di aplikasi e-wallet kamu, bukan di sini",
+  "Alamat internet (IP) kamu",
 ]
 
 const DELETE_STEPS = ["Buka halaman hasil", "Ketuk “Hapus foto”", "Hilang untuk kalian berdua"]

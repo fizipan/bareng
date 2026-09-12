@@ -19,7 +19,7 @@ import {
   type RoomSnapshot,
   type ServerShot,
 } from "@/lib/session/room-state"
-import type { DevActions, Paywall, Screen, SessionActions, SessionState } from "@/lib/session/types"
+import type { DevActions, Paywall, PreviewPair, Screen, SessionActions, SessionState } from "@/lib/session/types"
 import { measureOffset } from "@/lib/sync/clock"
 import { getFilter } from "@/lib/templates/filters"
 import { DEFAULT_TEMPLATE_ID, getTemplate } from "@/lib/templates/builtin"
@@ -144,6 +144,10 @@ function frameImages() {
 // mengunggah; tamu menyusul kalau 4 dtk belum ada (host keluar / sinyal jelek).
 type Composite = { strip: Blob; card: Blob }
 const composites = new Map<string, Promise<Composite>>()
+// Pratinjau kecil untuk paywall (photostrip mereka sendiri, dengan & tanpa
+// watermark). Sengaja kecil: cepat dirender dan tidak berguna kalau dipotret.
+const PREVIEW_WIDTH = 360
+const previews = new Map<string, Promise<PreviewPair>>()
 const publishing = new Set<string>()
 let publishTimer: ReturnType<typeof setTimeout> | null = null
 let publishPath = ""
@@ -154,6 +158,8 @@ function clearComposites() {
   publishTimer = null
   publishPath = ""
   composites.clear()
+  for (const job of previews.values()) job.then(({ free, premium }) => [free, premium].forEach(URL.revokeObjectURL), () => {})
+  previews.clear()
   publishing.clear()
   publishJob = null
 }
@@ -341,18 +347,14 @@ export const useSession = create<Store>()((set, get) => {
 
   const renderKeyOf = (s: SessionState) => resultKey(s.templateId, s.filterId, s.tier === "premium")
 
-  // Photostrip + kartu pratinjau link dari 8 foto asli (sekali per pengaturan).
-  const buildComposite = (key: string): Promise<Composite> => {
+  // 8 foto asli (4 baris × kamu & dia) sebagai bitmap siap render.
+  const loadStripImages = async () => {
     const s = get()
     const snap = s.snapshot
     const result = s.result
     const me = s.participantId
-    if (!snap || !result || !me) return Promise.reject(new Error("no_result"))
-    const cacheKey = `${result.slug}:${key}`
-    const cached = composites.get(cacheKey)
-    if (cached) return cached
-
-    const job = (async () => {
+    if (!snap || !result || !me) throw new Error("no_result")
+    {
       const host = snap.participants.find((p) => p.role === "host")
       const guest = snap.participants.find((p) => p.role === "guest")
       type Row = RoomSnapshot["frames"][number]
@@ -367,9 +369,27 @@ export const useSession = create<Store>()((set, get) => {
         if (!url) throw new Error("frame_missing")
         return url
       }
-      const images = await Promise.all(
-        rows.map(async ([a, b]) => ({ a: await loadBitmap(urlOf(a)), b: await loadBitmap(urlOf(b)) }))
-      )
+      return Promise.all(rows.map(async ([a, b]) => ({ a: await loadBitmap(urlOf(a)), b: await loadBitmap(urlOf(b)) })))
+    }
+  }
+
+  const closeImages = (images: { a: ImageBitmap; b: ImageBitmap }[]) =>
+    images.forEach(({ a, b }) => {
+      a.close()
+      b.close()
+    })
+
+  // Photostrip + kartu pratinjau link dari 8 foto asli (sekali per pengaturan).
+  const buildComposite = (key: string): Promise<Composite> => {
+    const s = get()
+    const result = s.result
+    if (!result) return Promise.reject(new Error("no_result"))
+    const cacheKey = `${result.slug}:${key}`
+    const cached = composites.get(cacheKey)
+    if (cached) return cached
+
+    const job = (async () => {
+      const images = await loadStripImages()
       try {
         const premium = s.tier === "premium"
         const createdAt = new Date(result.createdAt)
@@ -390,14 +410,45 @@ export const useSession = create<Store>()((set, get) => {
         })
         return { strip, card: await canvasToJpeg(cardCanvas, 0.85) }
       } finally {
-        images.forEach(({ a, b }) => {
-          a.close()
-          b.close()
-        })
+        closeImages(images)
       }
     })()
     composites.set(cacheKey, job)
     job.catch(() => composites.delete(cacheKey))
+    return job
+  }
+
+  // Dua pratinjau kecil photostrip mereka sendiri: dengan watermark (gratis)
+  // dan tanpa watermark (premium), untuk paywall di layar hasil.
+  const buildPreview = (): Promise<PreviewPair> => {
+    const s = get()
+    const result = s.result
+    if (!result) return Promise.reject(new Error("no_result"))
+    const key = `${result.slug}:${s.templateId}:${s.filterId}`
+    const cached = previews.get(key)
+    if (cached) return cached
+
+    const job = (async () => {
+      const images = await loadStripImages()
+      try {
+        const base = {
+          template: getTemplate(s.templateId),
+          images,
+          filterCss: getFilter(s.filterId).css,
+          tokens: { date: formatStripDate(new Date(result.createdAt)), host: SITE_HOST, names: result.names },
+          width: PREVIEW_WIDTH,
+        }
+        const [free, premium] = await Promise.all([
+          renderStrip({ ...base, watermark: true }).then((c) => canvasToJpeg(c, 0.8)),
+          renderStrip({ ...base, watermark: false }).then((c) => canvasToJpeg(c, 0.8)),
+        ])
+        return { free: URL.createObjectURL(free), premium: URL.createObjectURL(premium) }
+      } finally {
+        closeImages(images)
+      }
+    })()
+    previews.set(key, job)
+    job.catch(() => previews.delete(key))
     return job
   }
 
@@ -862,6 +913,12 @@ export const useSession = create<Store>()((set, get) => {
         void api.purgeResult(slug).catch(() => {})
       }
       notify("Foto dihapus")
+    },
+
+    // Dipakai paywall; null kalau fotonya belum ada (mis. galeri /dev/screens).
+    previewStrips: async () => {
+      if (!get().result || !get().snapshot) return null
+      return buildPreview().catch(() => null)
     },
 
     openPaywall: () => {
