@@ -139,7 +139,12 @@ export function deriveView(
         (row.path ? images.remote[row.path] : undefined)
       return url ? { kind: "image", url } : { kind: "pending" }
     }
-    return { a: source(a), b: source(b) }
+    const pair = { a: source(a), b: source(b) }
+    // Muncul berdua sekaligus: foto sendiri ada seketika, punya dia baru
+    // sampai setelah terkirim. Kalau ditampilkan apa adanya, satu sisi
+    // menyala duluan dan terlihat seperti gagal.
+    if (pair.a.kind === "pending" || pair.b.kind === "pending") return { a: { kind: "pending" }, b: { kind: "pending" } }
+    return pair
   })
 
   let screen: Screen
