@@ -78,7 +78,7 @@ describe("deriveView", () => {
     )
     expect(v.frames.map((f) => !!f)).toEqual([true, false, false, false])
   })
-  it("foto asli: punya sendiri dari HP ini, pasangan dari Storage, sisanya masih dikirim", () => {
+  it("foto muncul berdua sekaligus: satu sisi belum sampai → dua-duanya menunggu", () => {
     const snap = {
       ...base,
       status: "review" as const,
@@ -93,8 +93,11 @@ describe("deriveView", () => {
       ...local,
       images: { local: { "0:1": "blob:host-0", "1:2": "blob:host-1" }, remote: { "r1/g/0-1.jpg": "https://x/g0" } },
     })
+    // Dua sisi sudah ada → tampil.
     expect(v.frames[0]).toEqual({ a: { kind: "image", url: "blob:host-0" }, b: { kind: "image", url: "https://x/g0" } })
-    expect(v.frames[1]).toEqual({ a: { kind: "image", url: "blob:host-1" }, b: { kind: "pending" } })
+    // Foto sendiri sudah ada, punya dia belum terkirim: keduanya ditahan
+    // supaya tidak ada sisi yang menyala duluan (terlihat seperti gagal).
+    expect(v.frames[1]).toEqual({ a: { kind: "pending" }, b: { kind: "pending" } })
     expect(v.framesReady).toBe(false)
   })
   it("pasangan offline → koneksi putus", () => {
