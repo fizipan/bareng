@@ -939,7 +939,14 @@ export const useSession = create<Store>()((set, get) => {
         const charge = s.roomId
           ? await api.startPayment(room(), s.paywall.pendingTemplateId)
           : // /dev/screens: tanpa room, tagihan contoh.
-            { orderId: "BRG-CONTOHCONTOH", amount: PREMIUM_PRICE, qr: "BARENG-UJI|contoh", expiresAt: Date.now() + 15 * 60_000, test: true }
+            {
+              orderId: "BRG-CONTOHCONTOH",
+              amount: PREMIUM_PRICE,
+              qr: "BARENG-UJI|contoh",
+              expiresAt: Date.now() + 15 * 60_000,
+              test: true,
+              simulate: true,
+            }
         if (!get().paywall.open) return
         set({ paywall: { ...get().paywall, step: "qris", charge } })
       } catch (e) {

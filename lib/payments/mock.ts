@@ -35,6 +35,7 @@ export function mockWebhookRequest(url: string, orderId: string, status: Payment
 export const mockProvider: PaymentProvider = {
   name: "mock",
   test: true,
+  simulatable: true,
   async createCharge({ orderId, amount }) {
     return { qr: `BARENG-UJI|${orderId}|${amount}`, providerRef: `mock_${orderId}` }
   },

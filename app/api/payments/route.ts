@@ -85,5 +85,6 @@ export async function POST(req: Request) {
     qr,
     expiresAt: charge.expires_at,
     test: provider.test,
+    simulate: provider.simulatable,
   })
 }

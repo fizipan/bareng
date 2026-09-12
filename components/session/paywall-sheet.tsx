@@ -203,19 +203,23 @@ function QrisStep({ charge, mobile }: { charge: PaywallCharge; mobile: boolean }
           <p className="flex gap-2 text-small text-soft-foreground">
             <FlaskConicalIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
             <span>
-              <span className="font-semibold text-foreground">Mode uji.</span> Belum ada uang sungguhan; coba alurnya pakai tombol
-              di bawah.
+              <span className="font-semibold text-foreground">Mode uji.</span>{" "}
+              {charge.simulate
+                ? "Belum ada uang sungguhan; coba alurnya pakai tombol di bawah."
+                : "Belum ada uang sungguhan. QR ini cuma bisa dibayar lewat simulator gateway."}
             </span>
           </p>
-          <div className="flex gap-2">
-            <Button size="sm" className="flex-1" onClick={() => simulatePayment("paid")} aria-busy={simulating || undefined}>
-              {simulating && <LoaderCircleIcon data-icon="inline-start" className="animate-spin" />}
-              Simulasikan bayar
-            </Button>
-            <Button size="sm" variant="soft" onClick={() => simulatePayment("failed")} disabled={simulating}>
-              Simulasikan gagal
-            </Button>
-          </div>
+          {charge.simulate && (
+            <div className="flex gap-2">
+              <Button size="sm" className="flex-1" onClick={() => simulatePayment("paid")} aria-busy={simulating || undefined}>
+                {simulating && <LoaderCircleIcon data-icon="inline-start" className="animate-spin" />}
+                Simulasikan bayar
+              </Button>
+              <Button size="sm" variant="soft" onClick={() => simulatePayment("failed")} disabled={simulating}>
+                Simulasikan gagal
+              </Button>
+            </div>
+          )}
         </div>
       )}
 

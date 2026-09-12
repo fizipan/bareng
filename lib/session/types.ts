@@ -53,8 +53,16 @@ export type SessionState = {
   result: SessionResult | null
 }
 
-// Tagihan QRIS yang sedang ditunggu (dari /api/payments).
-export type PaywallCharge = { orderId: string; amount: number; qr: string; expiresAt: number; test: boolean }
+// Tagihan QRIS yang sedang ditunggu (dari /api/payments). `test` = belum uang
+// sungguhan; `simulate` = boleh dilunasi dari tombol di paywall.
+export type PaywallCharge = {
+  orderId: string
+  amount: number
+  qr: string
+  expiresAt: number
+  test: boolean
+  simulate: boolean
+}
 // tawar = penawaran · memuat = membuat QR · qris = menunggu bayar · gagal = gagal/ditolak
 export type PaywallStep = "tawar" | "memuat" | "qris" | "gagal"
 export type Paywall = {

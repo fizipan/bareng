@@ -13,7 +13,7 @@ import { daysLeft } from "@/lib/format"
 import { ensureSession, supabase } from "@/lib/supabase/client"
 import { notify, warn } from "@/lib/toast"
 
-type Charge = { orderId: string; amount: number; qr: string; expiresAt: number; test: boolean }
+type Charge = { orderId: string; amount: number; qr: string; expiresAt: number; test: boolean; simulate: boolean }
 
 const rupiah = (n: number) => `Rp${new Intl.NumberFormat("id-ID").format(n)}`
 const clock = (ms: number) => new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit" }).format(ms)
@@ -111,13 +111,17 @@ export function KeepForever({ slug, expiresAt }: { slug: string; expiresAt: numb
           <p className="flex gap-2 text-small text-soft-foreground">
             <FlaskConicalIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
             <span>
-              <span className="font-semibold text-foreground">Mode uji.</span> Belum ada uang sungguhan; coba alurnya pakai tombol
-              di bawah.
+              <span className="font-semibold text-foreground">Mode uji.</span>{" "}
+              {charge.simulate
+                ? "Belum ada uang sungguhan; coba alurnya pakai tombol di bawah."
+                : "Belum ada uang sungguhan. QR ini cuma bisa dibayar lewat simulator gateway."}
             </span>
           </p>
-          <Button size="sm" onClick={simulate}>
-            Simulasikan bayar
-          </Button>
+          {charge.simulate && (
+            <Button size="sm" onClick={simulate}>
+              Simulasikan bayar
+            </Button>
+          )}
         </div>
       )}
       <Button variant="ghost" className="text-label" onClick={() => setCharge(null)}>

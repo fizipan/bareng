@@ -12,6 +12,8 @@ export async function POST(req: Request) {
 
   const event = await provider.verifyWebhook(req).catch(() => null)
   if (!event) return Response.json({ error: "invalid_signature" }, { status: 401 })
+  // Kabar antara (mis. QR baru dibuat): sah, tapi belum mengubah apa pun.
+  if (event.status === "pending") return Response.json({ ok: true, status: "pending" })
 
   const { data, error } = await sb.rpc("payment_settle", {
     p_order: event.orderId,
