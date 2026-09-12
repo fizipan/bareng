@@ -1,6 +1,6 @@
 "use client"
 
-import { captchaToken } from "@/lib/captcha"
+import { captchaEnabled, captchaToken, CaptchaError } from "@/lib/captcha"
 import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "./types"
 
@@ -31,7 +31,12 @@ export async function ensureSession(): Promise<Session> {
   // sesi anonim tanpa token begitu perlindungan captcha dinyalakan.
   signingIn ??= captchaToken()
     .catch(() => undefined)
-    .then((captcha) => sb.auth.signInAnonymously(captcha ? { options: { captchaToken: captcha } } : undefined))
+    .then((captcha) => {
+      // Captcha dipasang tapi tokennya tidak didapat (tantangan ditutup atau
+      // kelamaan): jangan kirim permintaan yang pasti ditolak.
+      if (captchaEnabled() && !captcha) throw new CaptchaError("captcha_failed")
+      return sb.auth.signInAnonymously(captcha ? { options: { captchaToken: captcha } } : undefined)
+    })
     .then(({ data: created, error }) => {
       if (error || !created.session) throw error ?? new Error("anonymous_signin_failed")
       return created.session

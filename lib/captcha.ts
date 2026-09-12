@@ -10,7 +10,8 @@ const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "0x4AAAAAAEw2vLZk
 const SCRIPT = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
 // Kalau tantangannya butuh waktu, baru tampilkan kartunya (biasanya langsung lolos).
 const SHOW_AFTER_MS = 700
-const TIMEOUT_MS = 25_000
+// Orang butuh waktu untuk mengerjakan tantangan; jangan menyerah kecepatan.
+const TIMEOUT_MS = 120_000
 
 type Turnstile = {
   render: (el: HTMLElement, opts: Record<string, unknown>) => string | undefined
@@ -44,6 +45,11 @@ export const captchaEnabled = () => !!SITE_KEY
 
 // Ambil satu token. Mengembalikan undefined kalau captcha tidak aktif atau
 // gagal — Supabase yang memutuskan token itu wajib atau tidak.
+// Dilempar saat captcha dipasang tapi token tidak didapat (ditutup / kelamaan).
+export class CaptchaError extends Error {
+  name = "CaptchaError"
+}
+
 export async function captchaToken(): Promise<string | undefined> {
   if (!SITE_KEY || typeof window === "undefined") return undefined
   const api = await load()
