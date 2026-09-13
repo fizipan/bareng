@@ -7,7 +7,7 @@ import { WhatsAppIcon } from "@/components/brand/whatsapp-icon"
 import { WaitingPair } from "@/components/art/waiting-pair"
 import { Button } from "@/components/ui/button"
 import { SITE_HOST } from "@/lib/brand"
-import { PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
+import { PAYMENTS_LIVE, PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
 import { cn } from "@/lib/utils"
 import { useSession } from "@/stores/session"
 import { BackButton } from "../back-button"
@@ -111,13 +111,15 @@ export function InviteScreen() {
         <p className="flex w-full items-start gap-2.5 rounded-md bg-card px-4 py-3 text-left text-meta text-soft-foreground">
           <SparklesIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-flash" />
           <span>
-            Sesi premium: bayar {PREMIUM_PRICE_LABEL} sekali untuk berdua sebelum mulai foto, sekarang atau nanti di booth.{" "}
+            {PAYMENTS_LIVE
+              ? `Sesi premium: bayar ${PREMIUM_PRICE_LABEL} sekali untuk berdua sebelum mulai foto, sekarang atau nanti di booth. `
+              : "Sesi premium: pembayarannya masih kami siapkan. "}
             <button
               type="button"
               onClick={openPaywall}
               className="cursor-pointer font-semibold text-foreground underline underline-offset-4 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             >
-              Bayar sekarang
+              {PAYMENTS_LIVE ? "Bayar sekarang" : "Selengkapnya"}
             </button>
           </span>
         </p>

@@ -2,18 +2,20 @@
 
 import { useEffect, useState } from "react"
 import { CircleAlertIcon, FlaskConicalIcon, LoaderCircleIcon, QrCodeIcon, RefreshCwIcon } from "lucide-react"
+import { FeedbackForm } from "@/components/help/feedback-form"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { SITE_HOST } from "@/lib/brand"
-import { PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
+import { PAYMENTS_LIVE, PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
 import type { PaywallCharge, PreviewPair } from "@/lib/session/types"
 import { getTemplate } from "@/lib/templates/builtin"
 import { lookBackground } from "@/lib/templates/placeholder"
 import { cn } from "@/lib/utils"
 import { useSession } from "@/stores/session"
 import { useFrame } from "./frame-context"
+import { PaymentSoon } from "./payment-soon"
 import { QrisCode } from "./qris-code"
 
 const rupiah = (n: number) => `Rp${new Intl.NumberFormat("id-ID").format(n)}`
@@ -33,13 +35,15 @@ function useCopy() {
   }
   if (needsPremium) {
     return {
-      title: "Bayar sesi premium",
-      description: `${guest ? "Sesi ini dibuat sebagai sesi premium" : "Kuota gratis hari ini sudah habis, jadi sesi ini premium"}. Satu bayar buat kalian berdua: semua template, tanpa watermark, HD.`,
+      title: PAYMENTS_LIVE ? "Bayar sesi premium" : "Sesi ini premium",
+      description: `${guest ? "Sesi ini dibuat sebagai sesi premium" : "Kuota gratis hari ini sudah habis, jadi sesi ini premium"}. ${PAYMENTS_LIVE ? "Satu bayar buat kalian berdua: semua" : "Isinya semua"} template, tanpa watermark, HD.`,
     }
   }
   return {
     title: pending ? `${getTemplate(pending).name} khusus premium` : "Simpan tanpa watermark",
-    description: "Semua template, kualitas tinggi, tersimpan selamanya. Satu bayar buat kalian berdua.",
+    description: PAYMENTS_LIVE
+      ? "Semua template, kualitas tinggi, tersimpan selamanya. Satu bayar buat kalian berdua."
+      : "Semua template, kualitas tinggi, tersimpan selamanya.",
   }
 }
 
@@ -51,11 +55,29 @@ export function PaywallSheet() {
   const frame = useFrame()
   const wide = useMediaQuery("(min-width: 768px)")
   const desktop = wide && !frame
-  const { title, description } = useCopy()
+  // Form masukan tampil di dalam lembar ini, bukan modal baru di atasnya.
+  const [feedback, setFeedback] = useState(false)
+  const offer = useCopy()
+  const { title, description } = feedback
+    ? { title: "Kirim masukan", description: "Ceritain aja apa yang kurang; kami baca satu per satu." }
+    : offer
 
   const onOpenChange = (next: boolean) => {
-    if (!next) closePaywall()
+    if (next) return
+    closePaywall()
+    setFeedback(false)
   }
+
+  const body = feedback ? (
+    <>
+      <FeedbackForm bare initialKind="masukan" />
+      <Button variant="ghost" className="text-label" onClick={() => setFeedback(false)}>
+        Kembali
+      </Button>
+    </>
+  ) : (
+    <PaywallBody mobile={!desktop} onFeedback={() => setFeedback(true)} />
+  )
 
   if (desktop) {
     return (
@@ -65,7 +87,7 @@ export function PaywallSheet() {
             <DialogTitle className="text-display-sm">{title}</DialogTitle>
             <DialogDescription className="max-w-[40ch] text-soft-foreground">{description}</DialogDescription>
           </div>
-          <PaywallBody mobile={false} />
+          {body}
         </DialogContent>
       </Dialog>
     )
@@ -79,22 +101,22 @@ export function PaywallSheet() {
             <DrawerTitle className="text-[26px] leading-tight">{title}</DrawerTitle>
             <DrawerDescription className="max-w-[40ch] text-left text-soft-foreground">{description}</DrawerDescription>
           </div>
-          <PaywallBody mobile />
+          {body}
         </div>
       </DrawerContent>
     </Drawer>
   )
 }
 
-function PaywallBody({ mobile }: { mobile: boolean }) {
+function PaywallBody({ mobile, onFeedback }: { mobile: boolean; onFeedback: () => void }) {
   const step = useSession((s) => s.paywall.step)
   const charge = useSession((s) => s.paywall.charge)
   if (step === "qris" && charge) return <QrisStep key={charge.orderId} charge={charge} mobile={mobile} />
   if (step === "gagal") return <FailedStep />
-  return <OfferStep />
+  return <OfferStep onFeedback={onFeedback} />
 }
 
-function OfferStep() {
+function OfferStep({ onFeedback }: { onFeedback: () => void }) {
   const loading = useSession((s) => s.paywall.step === "memuat")
   const needsPremium = useSession((s) => s.needsPremium)
   const pay = useSession((s) => s.pay)
@@ -129,20 +151,35 @@ function OfferStep() {
           </>
         )}
       </div>
-      <div className="flex items-baseline gap-2">
-        <span className="font-display text-display-md font-semibold">{PREMIUM_PRICE_LABEL}</span>
-        <span className="text-small text-muted-foreground">sekali, untuk sesi ini</span>
-      </div>
-      <div className="flex flex-col gap-1">
-        {/* Saat menyiapkan QR tombol tetap berwarna (bukan abu-abu); klik ganda dicegah store. */}
-        <Button onClick={pay} aria-busy={loading || undefined} className={cn(loading && "cursor-progress")}>
-          {loading ? <LoaderCircleIcon data-icon="inline-start" className="animate-spin" /> : <QrCodeIcon data-icon="inline-start" />}
-          {loading ? "Menyiapkan QRIS…" : `Bayar ${PREMIUM_PRICE_LABEL}`}
-        </Button>
-        <Button variant="ghost" className="text-label" onClick={closePaywall} disabled={loading}>
-          {needsPremium ? "Nanti dulu" : "Lanjut dengan watermark"}
-        </Button>
-      </div>
+      {PAYMENTS_LIVE ? (
+        <>
+          <div className="flex items-baseline gap-2">
+            <span className="font-display text-display-md font-semibold">{PREMIUM_PRICE_LABEL}</span>
+            <span className="text-small text-muted-foreground">sekali, untuk sesi ini</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            {/* Saat menyiapkan QR tombol tetap berwarna (bukan abu-abu); klik ganda dicegah store. */}
+            <Button onClick={pay} aria-busy={loading || undefined} className={cn(loading && "cursor-progress")}>
+              {loading ? (
+                <LoaderCircleIcon data-icon="inline-start" className="animate-spin" />
+              ) : (
+                <QrCodeIcon data-icon="inline-start" />
+              )}
+              {loading ? "Menyiapkan QRIS…" : `Bayar ${PREMIUM_PRICE_LABEL}`}
+            </Button>
+            <Button variant="ghost" className="text-label" onClick={closePaywall} disabled={loading}>
+              {needsPremium ? "Nanti dulu" : "Lanjut dengan watermark"}
+            </Button>
+          </div>
+        </>
+      ) : (
+        <div className="flex flex-col gap-1">
+          <PaymentSoon onFeedback={onFeedback} />
+          <Button variant="ghost" className="text-label" onClick={closePaywall}>
+            {needsPremium ? "Nanti dulu" : "Lanjut dengan watermark"}
+          </Button>
+        </div>
+      )}
     </>
   )
 }

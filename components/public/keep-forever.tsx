@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ClockIcon, FlaskConicalIcon, LoaderCircleIcon, SparklesIcon } from "lucide-react"
+import { PaymentSoon } from "@/components/session/payment-soon"
 import { QrisCode } from "@/components/session/qris-code"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer"
 import { useMediaQuery } from "@/hooks/use-media-query"
-import { PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
+import { PAYMENTS_LIVE, PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
 import { daysLeft } from "@/lib/format"
 import { ensureSession, supabase } from "@/lib/supabase/client"
 import { notify, warn } from "@/lib/toast"
@@ -139,14 +140,23 @@ export function KeepForever({ slug, expiresAt }: { slug: string; expiresAt: numb
       <span className="flex flex-col gap-0.5">
         <span className="text-label font-semibold">Simpan selamanya, tanpa watermark</span>
         <span className="text-small text-soft-foreground">
-          Sekali bayar {PREMIUM_PRICE_LABEL} untuk kalian berdua. Photostrip ini jadi kualitas tinggi dan linknya nggak akan
-          mati.
+          {PAYMENTS_LIVE
+            ? `Sekali bayar ${PREMIUM_PRICE_LABEL} untuk kalian berdua. Photostrip ini jadi kualitas tinggi dan linknya nggak akan mati.`
+            : "Photostrip ini bisa jadi kualitas tinggi dan linknya nggak mati — tapi belum bisa dibeli dulu."}
         </span>
       </span>
-      <Button onClick={open} aria-busy={busy || undefined} className={busy ? "cursor-progress" : undefined}>
-        {busy ? <LoaderCircleIcon data-icon="inline-start" className="animate-spin" /> : <SparklesIcon data-icon="inline-start" />}
-        {busy ? "Menyiapkan QRIS…" : `Simpan selamanya · ${PREMIUM_PRICE_LABEL}`}
-      </Button>
+      {PAYMENTS_LIVE ? (
+        <Button onClick={open} aria-busy={busy || undefined} className={busy ? "cursor-progress" : undefined}>
+          {busy ? (
+            <LoaderCircleIcon data-icon="inline-start" className="animate-spin" />
+          ) : (
+            <SparklesIcon data-icon="inline-start" />
+          )}
+          {busy ? "Menyiapkan QRIS…" : `Simpan selamanya · ${PREMIUM_PRICE_LABEL}`}
+        </Button>
+      ) : (
+        <PaymentSoon lead="Sistem pembayarannya masih kami siapkan." />
+      )}
 
       {wide ? (
         <Dialog open={!!charge} onOpenChange={(next) => !next && setCharge(null)}>

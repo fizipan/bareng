@@ -4,7 +4,7 @@ import { Logo, LogoMark, Wordmark } from "@/components/brand/logo"
 import { Strip } from "@/components/strip/strip"
 import { BRAND, SUPPORT_EMAIL } from "@/lib/brand"
 import { faqList } from "@/lib/content/faq"
-import { PREMIUM_PRICE_SHORT } from "@/lib/content/pricing"
+import { PAYMENTS_LIVE, PREMIUM_PRICE_SHORT } from "@/lib/content/pricing"
 import { getTemplate } from "@/lib/templates/builtin"
 import { cn } from "@/lib/utils"
 import { InstallFooterLink } from "@/components/pwa/install-button"
@@ -23,8 +23,9 @@ import { StartButton } from "./start-button"
 // Landing R0 (prototipe baris 97–363). Responsif lewat container query, supaya
 // tampil benar juga di bingkai HP halaman /dev/screens.
 export function Landing() {
-  // Gateway masih "mock" → jawaban pembayaran di FAQ ikut menyebut mode uji.
-  const faq = faqList((process.env.PAYMENT_PROVIDER ?? "mock") === "mock")
+  // Pembayaran ditahan atau gateway masih "mock" → jawaban soal bayar di FAQ
+  // ikut jujur bahwa premium belum bisa dibeli.
+  const faq = faqList(!PAYMENTS_LIVE || (process.env.PAYMENT_PROVIDER ?? "mock") === "mock")
   return (
     <div className="@container flex flex-1 flex-col">
       <main className="mx-auto flex w-full max-w-[520px] flex-col gap-[30px] px-5 pt-2 pb-9 @3xl:max-w-[1040px] @3xl:gap-16 @3xl:px-10 @3xl:pt-6 @3xl:pb-16">
@@ -171,7 +172,9 @@ const PLANS = [
     price: PREMIUM_PRICE_SHORT,
     unit: "per sesi",
     perks: ["Semua 6 template", "Tanpa watermark & HD", "Simpan permanen", "Nggak kena batas harian"],
-    note: "Satu bayar untuk kalian berdua. Bisa dibayar sebelum foto atau setelah lihat hasil.",
+    note: PAYMENTS_LIVE
+      ? "Satu bayar untuk kalian berdua. Bisa dibayar sebelum foto atau setelah lihat hasil."
+      : "Pembayarannya masih kami siapkan, jadi paket ini belum bisa dibeli dulu.",
     premium: true,
   },
 ]

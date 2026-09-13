@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { supabaseAdmin } from "@/lib/admin/supabase-admin"
-import { PREMIUM_PRICE } from "@/lib/content/pricing"
+import { PAYMENTS_LIVE, PREMIUM_PRICE } from "@/lib/content/pricing"
 import { paymentProvider } from "@/lib/payments"
 
 // Dari dalam sesi: roomId. Dari halaman publik (simpan selamanya): slug.
@@ -21,6 +21,9 @@ const STATUS: Record<string, number> = {
 // anonim diverifikasi), harga dari server. Tagihan yang masih berlaku dipakai
 // lagi, jadi dua orang yang membuka paywall melihat QR yang sama.
 export async function POST(req: Request) {
+  // Pembayaran sedang ditahan (gateway belum siap): tolak di server juga, bukan
+  // cuma disembunyikan di layar.
+  if (!PAYMENTS_LIVE) return Response.json({ error: "unavailable" }, { status: 503 })
   const parsed = body.safeParse(await req.json().catch(() => null))
   if (!parsed.success) return Response.json({ error: "invalid" }, { status: 400 })
   const provider = paymentProvider()

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useSyncExternalStore } from "react"
+import { useSyncExternalStore } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ArrowUpRightIcon, MessageCircleQuestionIcon } from "lucide-react"
@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { cn } from "@/lib/utils"
+import { openHelp, setHelpOpen, useHelp } from "@/stores/help"
 import { FeedbackForm } from "./feedback-form"
 
 // Tombol bantuan melayang (kanan bawah) → modal form masukan/bug. Modal, bukan
@@ -28,7 +29,7 @@ const pastHero = () => window.scrollY > window.innerHeight * 0.9
 export function HelpFab() {
   const pathname = usePathname()
   const wide = useMediaQuery("(min-width: 768px)")
-  const [open, setOpen] = useState(false)
+  const open = useHelp((s) => s.open)
   const scrolled = useSyncExternalStore(onScroll, pastHero, () => false)
 
   if (/^\/(bantuan|admin|dev)(\/|$)/.test(pathname)) return null
@@ -49,7 +50,7 @@ export function HelpFab() {
         href="/bantuan"
         target={inSession ? "_blank" : undefined}
         className="inline-flex min-h-11 items-center justify-center gap-1 text-small text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-        onClick={() => !inSession && setOpen(false)}
+        onClick={() => !inSession && setHelpOpen(false)}
       >
         Lihat masalah umum di Pusat bantuan
         <ArrowUpRightIcon aria-hidden className="size-3.5" />
@@ -62,7 +63,7 @@ export function HelpFab() {
       <button
         type="button"
         data-help-fab
-        onClick={() => setOpen(true)}
+        onClick={openHelp}
         aria-label="Bantuan & kirim masukan"
         aria-hidden={tucked || undefined}
         tabIndex={tucked ? -1 : undefined}
@@ -74,11 +75,11 @@ export function HelpFab() {
         <MessageCircleQuestionIcon aria-hidden className="size-[22px]" />
       </button>
       {wide ? (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={setHelpOpen}>
           <DialogContent className="kertas gap-5 p-6 sm:max-w-[480px]">{body(DialogTitle, DialogDescription)}</DialogContent>
         </Dialog>
       ) : (
-        <Drawer open={open} onOpenChange={setOpen}>
+        <Drawer open={open} onOpenChange={setHelpOpen}>
           <DrawerContent className="kertas">
             <div className="mx-auto flex min-h-0 w-full max-w-[440px] flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-5 pt-[22px] pb-[max(20px,env(safe-area-inset-bottom))]">
               {body(DrawerTitle as typeof DialogTitle, DrawerDescription as typeof DialogDescription)}

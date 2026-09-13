@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { ApertureIcon, CheckIcon, ChevronRightIcon, PencilLineIcon, QrCodeIcon, SparklesIcon, Undo2Icon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { track } from "@/lib/analytics"
-import { PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
+import { PAYMENTS_LIVE, PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
 import { parseUserAgent } from "@/lib/device-info"
 import { stripNamesOf } from "@/lib/session/room-state"
 import { getFilter } from "@/lib/templates/filters"
@@ -197,12 +197,14 @@ export function LobbyScreen() {
               <p className="flex items-start gap-2 px-1 pt-0.5 text-caption text-soft-foreground">
                 <SparklesIcon aria-hidden className="mt-px size-3.5 shrink-0 text-flash" />
                 <span>
-                  Sesi premium: bayar {PREMIUM_PRICE_LABEL} sekali untuk berdua, lalu tombol Siap terbuka.
+                  {PAYMENTS_LIVE
+                    ? `Sesi premium: bayar ${PREMIUM_PRICE_LABEL} sekali untuk berdua, lalu tombol Siap terbuka.`
+                    : "Sesi premium: pembayarannya masih kami siapkan, jadi sesi ini belum bisa dimulai."}
                 </span>
               </p>
               <Button onClick={s.openPaywall}>
-                <QrCodeIcon data-icon="inline-start" />
-                Bayar {PREMIUM_PRICE_LABEL}
+                {PAYMENTS_LIVE ? <QrCodeIcon data-icon="inline-start" /> : <SparklesIcon data-icon="inline-start" />}
+                {PAYMENTS_LIVE ? `Bayar ${PREMIUM_PRICE_LABEL}` : "Selengkapnya"}
               </Button>
             </>
           ) : s.me.ready ? (

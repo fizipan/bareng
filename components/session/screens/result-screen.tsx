@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { SITE_HOST } from "@/lib/brand"
-import { PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
+import { PAYMENTS_LIVE, PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
 import { daysLeft, formatLongDate, formatStripDate } from "@/lib/format"
 import { getFilter } from "@/lib/templates/filters"
 import { getTemplate } from "@/lib/templates/builtin"
@@ -154,7 +154,7 @@ export function ResultScreen() {
                   ))}
                 </ul>
                 <Button variant="paper" onClick={s.openPaywall}>
-                  Lihat premium — {PREMIUM_PRICE_LABEL}
+                  {PAYMENTS_LIVE ? `Lihat premium — ${PREMIUM_PRICE_LABEL}` : "Lihat premium"}
                 </Button>
               </div>
               {expiresAt && (
