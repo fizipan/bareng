@@ -38,12 +38,12 @@ const BASE: FaqItem[] = [
   },
 ]
 
-// Selama gateway pembayaran masih mode uji, jawaban soal bayar ikut jujur.
+// Selama pembayaran belum bisa dipakai sungguhan, jawaban soal bayar ikut jujur.
 export function faqList(testMode: boolean): FaqItem[] {
   if (!testMode) return BASE
   return BASE.map((item) =>
     item.q === "Bayarnya pakai apa?"
-      ? { ...item, a: `${item.a} Sekarang pembayarannya masih mode uji, jadi sesi premium belum bisa dibeli beneran.` }
+      ? { ...item, a: `${item.a} Sekarang pembayarannya masih kami siapkan, jadi sesi premium belum bisa dibeli.` }
       : item
   )
 }
