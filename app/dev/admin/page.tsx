@@ -118,10 +118,17 @@ const STATS: AdminStats = {
   drift: { n: 152, p50: 38, p95: 121, under150: 97 },
   rtc: { connected: 45, failed: 2, p50_ms: 2300, relay_pct: 9 },
   payments: { count: 4, total: 60000 },
+  speed: { n: 38, p50: 143, p90: 402 },
+  perms: { cam_ok: 94, cam_no: 8, mic_try: 44, mic_ok: 31, mic_no: 9, mic_lain: 4 },
+  retake: { rooms: 12, count: 19 },
+  reach: { views: 71, rooms: 33 },
+  // Jam ramai khas: sepi pagi, ramai malam.
+  hours: [1, 0, 0, 0, 0, 0, 1, 2, 3, 2, 3, 4, 5, 3, 2, 4, 6, 7, 9, 11, 8, 5, 3, 2].map((rooms, h) => ({ h, rooms })),
   daily: [7, 11, 6, 9, 13, 8, 10].map((rooms, i) => ({
     day: new Date(NOW - (6 - i) * 86_400_000).toISOString().slice(0, 10),
     rooms,
     captured: Math.round(rooms * 0.6),
+    paid: [0, 15000, 0, 15000, 30000, 0, 0][i],
   })),
 }
 

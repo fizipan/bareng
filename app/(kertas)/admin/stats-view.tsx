@@ -1,15 +1,19 @@
 import {
   ArrowDownIcon,
   ArrowUpIcon,
+  CameraIcon,
   ChartNoAxesColumnIcon,
   DoorOpenIcon,
   ImagesIcon,
+  MicIcon,
   TrendingDownIcon,
   VideoIcon,
   WalletIcon,
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { DailyChart, HourBars, type DailyRow, type HourRow } from "./stats-chart"
+import { durasi, pct, rupiah } from "./stats-format"
 
 export type AdminStats = {
   days: number
@@ -19,22 +23,12 @@ export type AdminStats = {
   drift: { n: number; p50: number | null; p95: number | null; under150: number | null }
   rtc: { connected: number; failed: number; p50_ms: number | null; relay_pct: number | null }
   payments: { count: number; total: number }
-  daily: { day: string; rooms: number; captured: number }[]
-}
-
-const pct = (n: number, of: number) => (of > 0 ? Math.round((n / of) * 100) : 0)
-const rupiah = (n: number) =>
-  n >= 1_000_000
-    ? `Rp${new Intl.NumberFormat("id-ID", { notation: "compact", maximumFractionDigits: 1 }).format(n)}`
-    : `Rp${new Intl.NumberFormat("id-ID").format(n)}`
-const dateOf = (day: string) => new Date(`${day}T00:00:00Z`)
-const shortDate = (day: string) => new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", timeZone: "UTC" }).format(dateOf(day))
-const weekday = (day: string) => new Intl.DateTimeFormat("id-ID", { weekday: "short", timeZone: "UTC" }).format(dateOf(day))
-// Batas atas grafik yang enak dibaca: 1, 2, 5, 10, 20, 50, …
-const niceMax = (n: number) => {
-  if (n <= 2) return 2
-  const base = 10 ** Math.floor(Math.log10(n))
-  return ([1, 2, 5, 10].find((m) => m * base >= n) ?? 10) * base
+  speed: { n: number; p50: number | null; p90: number | null }
+  perms: { cam_ok: number; cam_no: number; mic_try: number; mic_ok: number; mic_no: number; mic_lain: number }
+  retake: { rooms: number; count: number }
+  reach: { views: number; rooms: number }
+  hours: HourRow[]
+  daily: DailyRow[]
 }
 
 // Naik/turun dibanding periode sebelumnya (panjang sama).
@@ -148,9 +142,30 @@ function Metric({ label, value, tone }: { label: string; value: string; tone?: "
   )
 }
 
+// Satu baris proporsi: ikon, berapa persen berhasil, dan rinciannya.
+function Share({ icon: Icon, label, ok, total, sub, warn }: { icon: LucideIcon; label: string; ok: number; total: number; sub: string; warn: boolean }) {
+  const share = total > 0 ? pct(ok, total) : null
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="flex items-center gap-2 text-small font-semibold">
+          <Icon aria-hidden className="size-4 text-muted-foreground" />
+          {label}
+        </span>
+        <span className="text-small tabular-nums">{share == null ? "–" : `${share}%`}</span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-card">
+        <div className={cn("h-full rounded-full", warn ? "bg-shutter" : "bg-ok")} style={{ width: `${share ?? 0}%` }} />
+      </div>
+      <span className="text-caption text-muted-foreground">{sub}</span>
+    </div>
+  )
+}
+
 // Tab Statistik /admin: angka utama (dibanding periode sebelumnya), perjalanan
-// sesi dengan titik berhenti terbanyak, kesehatan jepret & koneksi, dan room
-// per hari. Angka dari tabel `events` (catatan teknis tanpa data pribadi).
+// sesi dengan titik berhenti terbanyak, kesehatan jepret & koneksi, room per
+// hari, jam ramai, dan izin perangkat. Angka dari tabel `events` (catatan
+// teknis tanpa data pribadi).
 export function StatsView({ stats }: { stats: AdminStats }) {
   const f = stats.funnel
   const p = stats.prev
@@ -190,14 +205,15 @@ export function StatsView({ stats }: { stats: AdminStats }) {
 
   const d = stats.drift
   const r = stats.rtc
+  const perms = stats.perms
   const shotHealth: Health = d.n === 0 || d.under150 == null ? "none" : d.under150 >= 95 ? "ok" : "warn"
   const tries = r.connected + r.failed
   const linkRate = tries > 0 ? pct(r.connected, tries) : null
   const linkHealth: Health = linkRate == null ? "none" : linkRate >= 90 ? "ok" : "warn"
-
-  const top = niceMax(Math.max(...stats.daily.map((x) => x.rooms), 1))
-  const week = stats.daily.length <= 7
-  const last = stats.daily.length - 1
+  const camTries = perms.cam_ok + perms.cam_no
+  // Kamera wajib: menolak berarti sesi berhenti di situ. Mikrofon opsional,
+  // jadi yang dinilai cuma kamera.
+  const camHealth: Health = camTries === 0 ? "none" : pct(perms.cam_ok, camTries) >= 90 ? "ok" : "warn"
 
   return (
     <div className="@container flex flex-col gap-3">
@@ -267,6 +283,18 @@ export function StatsView({ stats }: { stats: AdminStats }) {
             </li>
           ))}
         </ol>
+        <div className="grid grid-cols-3 gap-3 border-t-[1.5px] border-line pt-3.5">
+          <Metric label="Sesi selesai dalam" value={durasi(stats.speed.p50)} />
+          <Metric
+            label="Foto diulang"
+            value={f.captured > 0 ? `${pct(stats.retake.rooms, f.captured)}% sesi` : "–"}
+            tone={f.captured > 0 && pct(stats.retake.rooms, f.captured) > 40 ? "warn" : undefined}
+          />
+          <Metric
+            label="Hasil dibuka"
+            value={stats.reach.rooms > 0 ? `${(stats.reach.views / stats.reach.rooms).toFixed(1).replace(".", ",")}×` : "–"}
+          />
+        </div>
       </Panel>
 
       <div className="grid gap-3 @2xl:grid-cols-2">
@@ -288,65 +316,39 @@ export function StatsView({ stats }: { stats: AdminStats }) {
         </Panel>
       </div>
 
-      <Panel
-        title="Room per hari"
-        aside={
-          <span className="flex items-center gap-3.5 text-caption text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <span aria-hidden className="size-2.5 rounded-[3px] bg-card ring-1 ring-line-strong ring-inset" />
-              Room dibuat
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span aria-hidden className="size-2.5 rounded-[3px] bg-foreground/80" />
-              Photostrip jadi
-            </span>
-          </span>
-        }
-      >
-        <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2.5">
-          <div aria-hidden className="flex h-36 flex-col justify-between text-right text-[11px] leading-none text-muted-foreground tabular-nums">
-            <span>{top}</span>
-            <span>{top / 2}</span>
-            <span>0</span>
-          </div>
-          <div className="relative h-36" role="img" aria-label={`Grafik room per hari, ${stats.daily.length} hari terakhir`}>
-            {[0, 50, 100].map((y) => (
-              <span key={y} aria-hidden className="absolute inset-x-0 border-t border-dashed border-line" style={{ top: `${y}%` }} />
-            ))}
-            <div className={cn("absolute inset-0 flex items-end", week ? "gap-2" : "gap-[3px]")}>
-              {stats.daily.map((day, i) => (
-                <div
-                  key={day.day}
-                  title={`${shortDate(day.day)}: ${day.rooms} room, ${day.captured} photostrip`}
-                  className={cn("relative flex-1 rounded-t-[3px] bg-card", i === last && "ring-1 ring-line-strong ring-inset")}
-                  style={{ height: `${day.rooms ? Math.max(3, (day.rooms / top) * 100) : 0}%` }}
-                >
-                  <span
-                    className="absolute inset-x-0 bottom-0 rounded-t-[3px] bg-foreground/80"
-                    style={{ height: `${day.rooms ? Math.min(100, (day.captured / day.rooms) * 100) : 0}%` }}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-          <span />
-          {week ? (
-            <div aria-hidden className="mt-2 flex gap-2 text-[11px] text-muted-foreground">
-              {stats.daily.map((day, i) => (
-                <span key={day.day} className={cn("flex-1 text-center whitespace-nowrap", i === last && "font-semibold text-foreground")}>
-                  {i === last ? "Hari ini" : weekday(day.day)}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <div aria-hidden className="mt-2 flex justify-between text-[11px] text-muted-foreground">
-              <span>{shortDate(stats.daily[0].day)}</span>
-              <span>{shortDate(stats.daily[Math.floor(last / 2)].day)}</span>
-              <span className="font-semibold text-foreground">Hari ini</span>
-            </div>
-          )}
-        </div>
+      <Panel title="Room per hari" note="Sorot batangnya untuk lihat angka hari itu.">
+        <DailyChart daily={stats.daily} />
       </Panel>
+
+      <div className="grid gap-3 @2xl:grid-cols-2">
+        <Panel title="Jam ramai" note="Waktu room dibuat, WIB.">
+          <HourBars hours={stats.hours} />
+        </Panel>
+        <Panel title="Izin perangkat" note="Kamera wajib; mikrofon boleh dilewati." aside={<HealthPill health={camHealth} />}>
+          <div className="flex flex-col gap-4">
+            <Share
+              icon={CameraIcon}
+              label="Kamera"
+              ok={perms.cam_ok}
+              total={camTries}
+              sub={camTries === 0 ? "Belum ada percobaan" : `${perms.cam_no} peserta menolak dari ${camTries}`}
+              warn={camHealth === "warn"}
+            />
+            <Share
+              icon={MicIcon}
+              label="Mikrofon"
+              ok={perms.mic_ok}
+              total={perms.mic_try}
+              sub={
+                perms.mic_try === 0
+                  ? "Belum ada yang mencoba"
+                  : `${perms.mic_no} ditolak · ${perms.mic_lain} gagal karena hal lain`
+              }
+              warn={perms.mic_try > 0 && pct(perms.mic_ok, perms.mic_try) < 60}
+            />
+          </div>
+        </Panel>
+      </div>
 
       <p className="text-caption text-muted-foreground">
         Termasuk sesi uji otomatis. Perangkat demo tidak dihitung. Tanpa data pribadi: tanpa nama, IP, atau email.
