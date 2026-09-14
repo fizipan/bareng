@@ -22,13 +22,13 @@ import { SITE_HOST } from "@/lib/brand"
 import { PAYMENTS_LIVE, PREMIUM_PRICE_LABEL } from "@/lib/content/pricing"
 import { daysLeft, formatLongDate, formatStripDate } from "@/lib/format"
 import { getFilter } from "@/lib/templates/filters"
-import { getTemplate } from "@/lib/templates/builtin"
+import { TEMPLATE_COUNT, getTemplate } from "@/lib/templates/builtin"
 import { warn } from "@/lib/toast"
 import { cn } from "@/lib/utils"
 import { useSession } from "@/stores/session"
 import { TemplatePicker } from "../template-picker"
 
-const PREMIUM_PERKS = ["Tanpa watermark", "Kualitas HD", "Semua 6 template", "Simpan permanen"]
+const PREMIUM_PERKS = ["Tanpa watermark", "Kualitas HD", `Semua ${TEMPLATE_COUNT} template`, "Simpan permanen"]
 
 // Layar Hasil, mode Kertas (prototipe baris 752–841). Satu momen orkestrasi
 // PRD §15.7: strip meluncur keluar dari slot mesin. Layar lebar: strip di kiri,

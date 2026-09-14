@@ -5,7 +5,7 @@ import { Strip } from "@/components/strip/strip"
 import { BRAND, SUPPORT_EMAIL } from "@/lib/brand"
 import { faqList } from "@/lib/content/faq"
 import { PAYMENTS_LIVE, PREMIUM_PRICE_SHORT } from "@/lib/content/pricing"
-import { getTemplate } from "@/lib/templates/builtin"
+import { FREE_TEMPLATE_COUNT, PREMIUM_TEMPLATE_COUNT, TEMPLATE_COUNT, getTemplate } from "@/lib/templates/builtin"
 import { cn } from "@/lib/utils"
 import { InstallFooterLink } from "@/components/pwa/install-button"
 import { InstallNudge } from "@/components/pwa/install-nudge"
@@ -135,9 +135,9 @@ function TemplatesPreview() {
   return (
     <section id="template" className="flex scroll-mt-6 flex-col gap-4 @3xl:gap-6">
       <SectionHeader
-        title="Tiga dari enam template"
+        title={`Tiga dari ${TEMPLATE_COUNT} template`}
         desc="Kertas, bingkai, dan tanggalnya ikut tercetak. Pilih bareng, berubah di layar dia juga."
-        aside="3 gratis, 3 premium"
+        aside={`${FREE_TEMPLATE_COUNT} gratis, ${PREMIUM_TEMPLATE_COUNT} premium`}
       />
       <TemplateTray />
     </section>
@@ -163,7 +163,7 @@ const PLANS = [
     name: "Gratis",
     price: "Rp0",
     unit: "selamanya",
-    perks: ["3 template", "Watermark kecil", "Simpan 7 hari", "3 sesi per hari"],
+    perks: [`${FREE_TEMPLATE_COUNT} template`, "Watermark kecil", "Simpan 7 hari", "3 sesi per hari"],
     note: "Langsung pakai, nggak perlu daftar. Kuota balik lagi tiap hari.",
     premium: false,
   },
@@ -171,7 +171,7 @@ const PLANS = [
     name: "Sekali sesi",
     price: PREMIUM_PRICE_SHORT,
     unit: "per sesi",
-    perks: ["Semua 6 template", "Tanpa watermark & HD", "Simpan permanen", "Nggak kena batas harian"],
+    perks: [`Semua ${TEMPLATE_COUNT} template`, "Tanpa watermark & HD", "Simpan permanen", "Nggak kena batas harian"],
     note: PAYMENTS_LIVE
       ? "Satu bayar untuk kalian berdua. Bisa dibayar sebelum foto atau setelah lihat hasil."
       : "Pembayarannya masih kami siapkan, jadi paket ini belum bisa dibeli dulu.",

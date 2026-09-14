@@ -1,12 +1,26 @@
 import { describe, expect, it } from "vitest"
-import { BUILTIN_TEMPLATES, getTemplate } from "@/lib/templates/builtin"
+import {
+  BUILTIN_TEMPLATES,
+  DEFAULT_TEMPLATE_ID,
+  FREE_TEMPLATE_COUNT,
+  PREMIUM_TEMPLATE_COUNT,
+  TEMPLATE_COUNT,
+  getTemplate,
+} from "@/lib/templates/builtin"
 import { fillTokens, stripTemplateSchema } from "@/lib/templates/schema"
 
 describe("template bawaan", () => {
-  it("ada 6 template: 3 gratis, 3 premium", () => {
-    expect(BUILTIN_TEMPLATES).toHaveLength(6)
-    expect(BUILTIN_TEMPLATES.filter((t) => t.tier === "free")).toHaveLength(3)
-    expect(new Set(BUILTIN_TEMPLATES.map((t) => t.id)).size).toBe(6)
+  // Jumlahnya sengaja tidak dikunci: template musiman datang dan pergi.
+  it("id-nya unik, ada yang gratis, dan hitungannya ikut daftar", () => {
+    expect(new Set(BUILTIN_TEMPLATES.map((t) => t.id)).size).toBe(BUILTIN_TEMPLATES.length)
+    expect(BUILTIN_TEMPLATES.filter((t) => t.tier === "free").length).toBeGreaterThan(0)
+    expect(TEMPLATE_COUNT).toBe(BUILTIN_TEMPLATES.length)
+    expect(FREE_TEMPLATE_COUNT + PREMIUM_TEMPLATE_COUNT).toBe(TEMPLATE_COUNT)
+  })
+
+  it("template bawaan ada dan gratis", () => {
+    expect(getTemplate(DEFAULT_TEMPLATE_ID).id).toBe(DEFAULT_TEMPLATE_ID)
+    expect(getTemplate(DEFAULT_TEMPLATE_ID).tier).toBe("free")
   })
 
   it.each(BUILTIN_TEMPLATES.map((t) => [t.id, t] as const))("%s lolos skema JSON", (_, t) => {

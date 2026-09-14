@@ -53,7 +53,10 @@ export function TemplateThumb({
         ))}
       </div>
       <span
-        className={cn("absolute font-display leading-none font-semibold", landing ? "bottom-[5px] left-2 text-[9px]" : "bottom-1 left-[7px] text-[8px]")}
+        className={cn(
+          "absolute max-w-[calc(100%-14px)] overflow-hidden font-display leading-none font-semibold whitespace-nowrap",
+          landing ? "bottom-[5px] left-2 text-[9px]" : "bottom-1 left-[7px] text-[8px]"
+        )}
         style={{ color: preview.noteColor }}
       >
         {fillTokens(preview.note, { date: "", host: "" })}

@@ -26,6 +26,9 @@ type StripParams = {
   numbers?: boolean
   hearts?: boolean
   note: string
+  // Thumbnail cuma selebar 78px: catatan panjang dipendekkan di sini supaya
+  // tidak melipat dan menabrak foto. Kosong = pakai `note` apa adanya.
+  previewNote?: string
   noteColor: string
 }
 
@@ -116,7 +119,7 @@ function buildStrip(p: StripParams): StripTemplate {
       sprockets: !!p.sprockets,
       band: p.band ?? null,
       slotBorder: p.slotBorder?.color ?? null,
-      note: p.note,
+      note: p.previewNote ?? p.note,
       noteColor: p.noteColor,
     },
     filter: null,
@@ -170,6 +173,38 @@ export const BUILTIN_TEMPLATES: StripTemplate[] = [
     sprockets: true,
     note: "bareng.",
     noteColor: "#16141D",
+  }),
+  buildStrip({
+    id: "bersih",
+    name: "Bersih",
+    tier: "free",
+    paper: "#FFFFFF",
+    ink: "#16141D",
+    pad: { top: 16, x: 16, bottom: 44 },
+    gap: 6,
+    cols: 1,
+    slotH: 108,
+    slotBorder: { width: 1, color: "#C9C7D1" },
+    // Sengaja tanpa catatan: yang tercetak cuma tanggal. Ini template untuk
+    // orang yang mau hasilnya bagus, bukan lucu.
+    note: "",
+    noteColor: "#8A8894",
+  }),
+  buildStrip({
+    id: "wisuda",
+    name: "Wisuda",
+    tier: "free",
+    paper: "#1C2540",
+    ink: "#F4F3EF",
+    pad: { top: 14, x: 14, bottom: 48 },
+    gap: 10,
+    cols: 1,
+    slotH: 104,
+    // Pita emas atas-bawah, seperti selempang. Satu ornamen saja, cukup.
+    band: "#D8B45A",
+    note: "{{names}} · wisuda",
+    previewNote: "wisuda",
+    noteColor: "#D8B45A",
   }),
   buildStrip({
     id: "polaroid",
@@ -248,6 +283,12 @@ export const BUILTIN_TEMPLATES: StripTemplate[] = [
 ]
 
 export const DEFAULT_TEMPLATE_ID = "film"
+
+// Dipakai di salinan landing & layar hasil. Diturunkan, bukan ditulis tangan:
+// template musiman datang dan pergi, angkanya ikut sendiri.
+export const TEMPLATE_COUNT = BUILTIN_TEMPLATES.length
+export const FREE_TEMPLATE_COUNT = BUILTIN_TEMPLATES.filter((t) => t.tier === "free").length
+export const PREMIUM_TEMPLATE_COUNT = TEMPLATE_COUNT - FREE_TEMPLATE_COUNT
 
 export function getTemplate(id: string | null | undefined): StripTemplate {
   return BUILTIN_TEMPLATES.find((t) => t.id === id) ?? BUILTIN_TEMPLATES[0]
